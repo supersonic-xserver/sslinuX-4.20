@@ -22,22 +22,21 @@ jobs:
           # 1. Refresh and Install System Deps
           dnf --refresh install -y coccinelle python3-pip python3-devel gcc grep tar
           
-          # 2. Install CVEhound with root override
+          # 2. Install CVEhound + setuptools (for pkg_resources)
+          # We force setuptools to ensure the legacy pkg_resources shim is present
           python3 -m pip install --upgrade pip
-          python3 -m pip install cvehound --root-user-action=ignore
+          python3 -m pip install setuptools cvehound --root-user-action=ignore
           
-          # 3. Ensure the rules are updated
-          # Using python3 -m to ensure it finds the package in the site-packages
+          # 3. Update CVE rules
+          # We call it via 'python3 -m' to bypass any pathing issues with /usr/local/bin
           python3 -m cvehound.scripts.update_rules || cvehound_update_rules
           
           # 4. Execute Full Scan
-          echo "--- STARTING FULL KERNEL SCAN (COOKER) ---" > cve_report.txt
+          echo "--- STARTING FULL KERNEL SCAN (COOKER PY3.14) ---" > cve_report.txt
           
-          echo "## EXPLOITABLE VULNERABILITIES ##" >> cve_report.txt
-          cvehound --kernel . --exploit >> cve_report.txt || true
-          
-          echo -e "\n## HIGH SEVERITY SCAN ##" >> cve_report.txt
-          cvehound --kernel . --min-severity high >> cve_report.txt || true
+          # We'll run cvehound through python3 -m to ensure it sees setuptools
+          python3 -m cvehound.scripts.cvehound --kernel . --exploit >> cve_report.txt || true
+          python3 -m cvehound.scripts.cvehound --kernel . --min-severity high >> cve_report.txt || true
           
           echo "--- SCAN COMPLETE ---" >> cve_report.txt
 
