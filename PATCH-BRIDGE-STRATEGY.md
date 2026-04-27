@@ -138,17 +138,17 @@ git remote add upstream https://git.kernel.org/pub/scm/linux/kernel/git/stable/l
 
 # Stage changes
 git add -A
-git commit -m "ssX: Version bump to 4.20.0-ssX Buster Reborn"
+git commit -m "ssX: Version bump to 4.20.0-sslinuX People's Front"
 
 # Tag release
-git tag -a v4.20.0-ssX -m "sslinuX 4.20.0-ssX Buster Reborn"
+git tag -a v4.20.0-ssX -m "sslinuX 4.20.0-sslinuX People's Front"
 ```
 
 ---
 
 ## Next Steps
 
-1. **Initial build test** - Verify 4.20.0-ssX version string
+1. **Initial build test** - Verify 4.20.0-sslinuX version string
 2. **Apply CVE backport patches** - Security fixes
 3. **Port AMDGPU optimizations** - Performance patches
 4. **Add Steam Deck audio drivers** - Required codec support
