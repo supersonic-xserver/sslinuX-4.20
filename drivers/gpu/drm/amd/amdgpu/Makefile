@@ -152,6 +152,9 @@ amdgpu-y += amdgpu_cgs.o
 # GPU scheduler
 amdgpu-y += amdgpu_job.o
 
+# IP Discovery for RDNA 2+ (hardware RT support)
+amdgpu-y += amdgpu_discovery.o
+
 # ACP componet
 ifneq ($(CONFIG_DRM_AMD_ACP),)
 amdgpu-y += amdgpu_acp.o

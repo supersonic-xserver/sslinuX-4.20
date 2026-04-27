@@ -63,6 +63,15 @@ MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 
+/* RT (Ray Tracing) firmware - RDNA 2+ */
+MODULE_FIRMWARE("amdgpu/rt_gfx.bin");
+MODULE_FIRMWARE("amdgpu/rt_dma.bin");
+MODULE_FIRMWARE("amdgpu/rt_traversal.bin");
+
+/* RDNA 3 RT firmware */
+MODULE_FIRMWARE("amdgpu/rt_gfx_10.bin");
+MODULE_FIRMWARE("amdgpu/rt_dma_10.bin");
+
 #define AMDGPU_RESUME_MS		2000
 
 static const char *amdgpu_asic_name[] = {

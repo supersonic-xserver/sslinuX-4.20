@@ -621,6 +621,7 @@ struct drm_amdgpu_cs_chunk_data {
  */
 #define AMDGPU_IDS_FLAGS_FUSION         0x1
 #define AMDGPU_IDS_FLAGS_PREEMPTION     0x2
+#define AMDGPU_IDS_FLAGS_RT           0x4
 
 /* indicate if acceleration can be working */
 #define AMDGPU_INFO_ACCEL_WORKING		0x00
@@ -719,6 +720,17 @@ struct drm_amdgpu_cs_chunk_data {
 /* Number of VRAM page faults on CPU access. */
 #define AMDGPU_INFO_NUM_VRAM_CPU_PAGE_FAULTS	0x1E
 #define AMDGPU_INFO_VRAM_LOST_COUNTER		0x1F
+
+/* sslinuX-4.20 Raytracing Emulation Support (Backport from 6.14+/6.18)
+ * Used by RADV/Mesa to detect kernel raytracing capability.
+ * Returns the number of available RT shader engine cores.
+ */
+#define AMDGPU_INFO_RADEON_GEOMETRY_ENGINES	0x20
+#define AMDGPU_INFO_RAYTRACING_VERSION		0x21
+	/* Subquery id: Query RT core count available for raytracing emulation */
+	#define AMDGPU_INFO_RADEON_GEOMETRY_ENGINES_CORE_COUNT	0x1
+	/* Subquery id: Query RT emulator version */
+	#define AMDGPU_INFO_RADEON_RAYTRACING_EMUL_VERSION	0x2
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff

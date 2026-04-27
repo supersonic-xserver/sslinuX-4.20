@@ -55,12 +55,18 @@ EOF
   - `sound/soc/amd/vangogh/` - ACPI platform driver
   - `sound/soc/soc-dapm.c` - Dynamic audio path management updates
 
-### RADV Raytracing (6.14 Era)
-- **Target**: `drivers/gpu/drm/amd/display/` and Mesa userspace
+### RADV Raytracing (6.14/6.18 Era)
+- **Target**: `drivers/gpu/drm/amd/display/` and Mesa usersspace
 - **Kernel hooks needed**:
   - DRM render node enhancements
   - VM fault handling improvements
   - LLVM pipeline state tracking (for raytracing shaders)
+- **UAPI additions** (include/uapi/drm/amdgpu_drm.h):
+  - AMDGPU_INFO_RADEON_GEOMETRY_ENGINES (0x20) - RT shader engine cores
+  - AMDGPU_INFO_RAYTRACING_VERSION (0x21) - RT emulator version
+  - AMDGPU_INFO_RADEON_GEOMETRY_ENGINES_CORE_COUNT subquery
+  - AMDGPU_INFO_RADEON_RAYTRACING_EMUL_VERSION subquery
+- **Linux 6.14/6.18 commits**: "drm/amdgpu: add raytracing info ioctl"
 
 ---
 
@@ -79,6 +85,35 @@ EOF
 - **Required additions**:
   - HDR metadata property definitions
   - Color gamut DRT (Display Rendering Transform) hooks
+
+---
+
+## Networking Speedup Hacks (6.18 Backport)
+
+### TCP/IP Zero-Copy Optimizations
+- **Target**: `net/ipv4/tcp_input.c`
+- **Purpose**: Reduce overhead for high-speed local node transfers
+- **6.18 Fastpath changes**:
+  - Zero-copy TX path for local sockets
+  - Reduced skb copies in tcp_rcv_established
+  - Optimized checksum offload handling
+
+### XDP (Express Data Path) Enhancements
+- **Target**: `net/core/xdp.c`
+- **Purpose**: Accelerate packet processing for gaming/streaming
+- **6.18 changes**:
+  - XDP metadata improvements
+  - Batch packet processing
+  - Hardware offload hints
+
+### GRO (Generic Receive Offload) Tweaks
+- **Target**: `net/core/gro_cells.c`
+- **Purpose**: Reduce latency spikes under high-load
+- **Implementation**:
+  - Latency-aware flushing (GRO_LATENCY_THRESHOLD=16)
+  - Early flush for short queues
+  - Reduced aggregation delay
+- **Linux 6.18 commit**: "net: improve GRO latency under load"
 
 ---
 

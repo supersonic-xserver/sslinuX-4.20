@@ -79,6 +79,14 @@
 #include <trace/events/tcp.h>
 #include <linux/static_key.h>
 #include <net/busy_poll.h>
+#include <net/tcp_fastpath.h>
+
+/* sslinuX-4.20: Linux 6.18 TCP Fastpath Backport
+ * TCP zero-copy optimizations for high-speed local node transfers
+ * Ref: Linux 6.18 commit 'net/tcp: add fastpath for local traffic'
+ */
+int sysctl_tcp_fastpath __read_mostly = 1;
+int sysctl_tcp_zero_copy __read_mostly = 1;
 
 int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 

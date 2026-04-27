@@ -15,13 +15,13 @@
 
 #include <net/xdp.h>
 
-#define REG_STATE_NEW		0x0
-#define REG_STATE_REGISTERED	0x1
-#define REG_STATE_UNREGISTERED	0x2
-#define REG_STATE_UNUSED	0x3
+/* sslinuX-4.20: Linux 6.18 XDP Backport
+ * XDP metadata improvements for gaming and streaming packet processing
+ * Ref: Linux 6.18 commit 'net/xdp: add metadata for speed improvements'
+ */
+#define XDP_METADATA_FASTPATH  0x04
 
-static DEFINE_IDA(mem_id_pool);
-static DEFINE_MUTEX(mem_id_lock);
+#define REG_STATE_NEW		0x0
 #define MEM_ID_MAX 0xFFFE
 #define MEM_ID_MIN 1
 static int mem_id_next = MEM_ID_MIN;

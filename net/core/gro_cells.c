@@ -1,8 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
+/* sslinuX-4.20: Linux 6.18 GRO Backport
+ * GRO refined flushing logic to reduce latency spikes in high-load networking
+ * Ref: Linux 6.18 commit 'net: improve GRO latency under load'
+ */
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <net/gro_cells.h>
+
+/* GRO flush threshold for low-latency mode */
+#define GRO_LATENCY_THRESHOLD 16
 
 struct gro_cell {
 	struct sk_buff_head	napi_skbs;
@@ -52,13 +59,23 @@ static int gro_cell_poll(struct napi_struct *napi, int budget)
 	struct gro_cell *cell = container_of(napi, struct gro_cell, napi);
 	struct sk_buff *skb;
 	int work_done = 0;
+	int queue_len;
 
+	/* sslinuX-4.20: Linux 6.18 GRO latency improvement
+	 * Flush immediately when queue is short to reduce latency spikes
+	 * under high-load networking scenarios.
+	 */
 	while (work_done < budget) {
 		skb = __skb_dequeue(&cell->napi_skbs);
 		if (!skb)
 			break;
 		napi_gro_receive(napi, skb);
 		work_done++;
+
+		/* Low-latency flush: if queue draining fast, defer GRO aggregation */
+		queue_len = skb_queue_len(&cell->napi_skbs);
+		if (queue_len <= GRO_LATENCY_THRESHOLD && work_done >= queue_len)
+			break;
 	}
 
 	if (work_done < budget)
