@@ -32,11 +32,12 @@ jobs:
         run: |
           echo "--- STARTING FULL KERNEL SCAN ---" > cve_report.txt
           
-          echo "## EXPLOITABLE VULNERABILITIES ##" >> cve_report.txt
+          echo "## KNOWN EXPLOIT PATTERNS ##" >> cve_report.txt
           cvehound --kernel . --exploit >> cve_report.txt || true
           
-          echo -e "\n## HIGH SEVERITY SCAN ##" >> cve_report.txt
-          cvehound --kernel . --min-severity high >> cve_report.txt || true
+          echo -e "\n## ALL DETECTED CVE PATTERNS ##" >> cve_report.txt
+          # Running without the severity flag so it actually executes
+          cvehound --kernel . >> cve_report.txt || true
           
           echo "--- SCAN COMPLETE ---" >> cve_report.txt
 
