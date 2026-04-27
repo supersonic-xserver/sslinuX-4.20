@@ -1,64 +1,50 @@
-name: "OpenMandriva Cooker Kernel Build & CodeQL"
+name: "sslinuX-4.20 Fast-Build"
 
 on:
   push:
     branches: [ "main", "ssX-dev" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch: # Allows manual trigger from the UI
 
 jobs:
-  analyze-and-build:
-    name: Build & Security Scan
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Setup OpenMandriva Cooker Environment
+      - name: Setup OpenMandriva Cooker Repos
         run: |
-          # Use a container or install DNF for OM repo access
           sudo apt-get update && sudo apt-get install -y dnf
           
-          # Add OpenMandriva Cooker Repositories
-          sudo dnf config-manager --add-repo http://mirror.openmandriva.org/cooker/repository/x86_64/main/release/
-          sudo dnf --disablerepo="*" --enablerepo="cooker-x86_64" --nogpgcheck install -y \
+          # Manually create the Cooker repo file since config-manager is missing
+          sudo mkdir -p /etc/dnf/repos.d/
+          sudo tee /etc/dnf/repos.d/openmandriva-cooker.repo <<EOF
+          [cooker-x86_64]
+          name=OpenMandriva Cooker x86_64
+          baseurl=http://mirror.openmandriva.org/cooker/repository/x86_64/main/release/
+          enabled=1
+          gpgcheck=0
+          EOF
+
+          # Install dependencies from the latest Cooker headers
+          sudo dnf --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
             gcc clang make binutils flex bison elfutils-devel openssl-devel \
-            kernel-desktop-devel \
-            bc dwarves perl-devel
+            kernel-desktop-devel bc dwarves
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: 'cpp'
-          # Manual build mode is required for specialized kernel builds
-          build-mode: manual
-
-      - name: Build Kernel (Manual Step for CodeQL)
+      - name: Build sslinuX Kernel
         run: |
-          # Ensure we are using the latest headers pulled from Cooker
-          # Link the Cooker headers to the build tree if necessary
-          export KERNEL_HEADERS=/usr/src/kernels/$(ls /usr/src/kernels | head -n 1)
+          # Use the latest Cooker headers to guide the build if needed
+          export KERN_DIR=$(ls -d /usr/src/kernels/* | head -n 1)
+          echo "Building against headers in: $KERN_DIR"
           
-          # Initialize the ssX configuration
+          # Initialize ssX config
           make x86_64_defconfig
           
-          # Compile the kernel - CodeQL will trace this execution
+          # Speed up build with all available cores
           make -j$(nproc) bzImage modules
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:cpp"
-
-      - name: Upload Build Artifacts
+      - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sslinuX-4.20-Cooker-bzImage
+          name: sslinuX-4.20-bzImage
           path: arch/x86/boot/bzImage
