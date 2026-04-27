@@ -29,3 +29,7 @@ obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_CPU_FREQ_GOV_SCHEDUTIL) += cpufreq_schedutil.o
 obj-$(CONFIG_MEMBARRIER) += membarrier.o
 obj-$(CONFIG_CPU_ISOLATION) += isolation.o
+
+# sslinuX-4.20: PSI backport from Linux 7.0 for gaming handhelds
+# Enables system to detect memory/IO pressure before frame drops
+obj-$(CONFIG_PSI) += psi.o

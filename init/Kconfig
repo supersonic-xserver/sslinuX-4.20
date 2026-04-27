@@ -1409,6 +1409,21 @@ config MEMBARRIER
 
 	  If unsure, say Y.
 
+# sslinuX-4.20: PSI backport from Linux 7.0 for gaming handhelds
+# Enables detection of memory/IO pressure before frame drops
+config PSI
+	bool "Pressure Stall Information (PSI)"
+	default y
+	help
+	  PSI enables the kernel to track resource pressure states (CPU, memory, IO)
+	  and allows userspace to monitor for pressure degradation.
+	  
+	  This is essential for gaming handhelds - it allows the system to detect
+	  memory/IO pressure before a frame is dropped, enabling smarter background
+	  task throttling.
+	  
+	  If unsure, say Y.
+
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EXPERT
 	 default y

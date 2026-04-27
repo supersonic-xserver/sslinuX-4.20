@@ -49,6 +49,7 @@ enum amd_asic_type {
 	CHIP_VEGA12,
 	CHIP_VEGA20,
 	CHIP_RAVEN,
+	CHIP_VANGOGH,	/* Steam Deck APU (GFX1033) */
 	CHIP_LAST,
 };
 

@@ -28,6 +28,14 @@
 #include <drm/drm_mode_object.h>
 #include <drm/drm_color_mgmt.h>
 
+/*
+ * sslinuX-4.20: Forward declaration
+ * struct drm_colorop is defined in include/uapi/drm/drm_mode.h
+ * The UAPI struct is used as the single source of truth for both
+ * kernel and userspace to avoid redefinition conflicts.
+ */
+struct drm_colorop;
+
 struct drm_crtc;
 struct drm_printer;
 struct drm_modeset_acquire_ctx;
@@ -676,6 +684,15 @@ struct drm_plane {
 	 * See drm_plane_create_color_properties().
 	 */
 	struct drm_property *color_range_property;
+
+	/* sslinuX-4.20: Linux 6.19 Color Pipeline Backport
+	 * List of colorop objects attached to this plane for
+	 * hardware-accelerated HDR color management.
+	 * This enables DRM_COLOROP_1D_CURVE and DRM_COLOROP_3D_LUT
+	 * to be mapped to Van Gogh (Steam Deck) DC hardware.
+	 * Note: Uses struct drm_colorop from UAPI header (drm_mode.h)
+	 */
+	struct list_head colorop_list;
 };
 
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
@@ -778,6 +795,5 @@ static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
  */
 #define drm_for_each_plane(plane, dev) \
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head)
-
 
 #endif

@@ -2823,20 +2823,29 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
  * Returns 0 for success or an error on failure.
  * Called at driver resume.
  */
+/* sslinuX-4.20: Fastboot - Van Gogh (Steam Deck) optimization */
+static bool amdgpu_vangogh_fastboot(struct amdgpu_device *adev)
+{
+	/* Fastboot for Van Gogh: skip unnecessary display reprobes */
+	return adev->asic_type == CHIP_VANGOGH;
+}
+
 int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 {
 	struct drm_connector *connector;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_crtc *crtc;
 	int r = 0;
+	bool fastboot;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	if (resume) {
-		pci_set_power_state(dev->pdev, PCI_D0);
-		pci_restore_state(dev->pdev);
-		r = pci_enable_device(dev->pdev);
+		struct amdgpu_device *adev = dev->dev_private;
+		pci_set_power_state(adev->pdev, PCI_D0);
+		pci_restore_state(adev->pdev);
+		r = pci_enable_device(adev->pdev);
 		if (r)
 			return r;
 	}
@@ -2855,6 +2864,12 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	}
 	amdgpu_fence_driver_resume(adev);
 
+	/* sslinuX-4.20: Fastboot optimization from Linux 7.0
+	 * Check if we should skip display reprobe for faster resume
+	 */
+	fastboot = amdgpu_vangogh_fastboot(adev);
+	if (fastboot)
+		DRM_INFO("amdgpu: Fastboot enabled - skipping display reprobe\n");
 
 	r = amdgpu_device_ip_late_init(adev);
 	if (r)

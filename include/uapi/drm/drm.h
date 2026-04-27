@@ -696,6 +696,15 @@ struct drm_get_cap {
  */
 #define DRM_CLIENT_CAP_WRITEBACK_CONNECTORS	5
 
+/**
+ * DRM_CLIENT_CAP_PLANE_COLOR_PIPELINE
+ *
+ * If set to 1, the DRM core will expose the color pipeline properties
+ * (drm_colorop, COLOR_PIPELINE) on planes for HDR colorimetry control.
+ * This enables 16-bit HDR output through the DC shaper LUT.
+ */
+#define DRM_CLIENT_CAP_PLANE_COLOR_PIPELINE	6
+
 /** DRM_IOCTL_SET_CLIENT_CAP ioctl argument type */
 struct drm_set_client_cap {
 	__u64 capability;

@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_vangogh_rt.h"
 
 /**
  * amdgpu_driver_unload_kms - Main unload function for KMS.
@@ -583,6 +584,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
 		if (amdgpu_sriov_vf(adev))
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
+
+		/* sslinuX-4.20: Enable RT flag for Van Gogh (Steam Deck) RADV driver handshake */
+		if (amdgpu_vangogh_rt_is_supported(adev))
+			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_RT;
 
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		vm_size -= AMDGPU_VA_RESERVED_SIZE;

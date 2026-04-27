@@ -441,6 +441,36 @@ struct drm_mode_connector_set_property {
 #define DRM_MODE_OBJECT_PLANE 0xeeeeeeee
 #define DRM_MODE_OBJECT_ANY 0
 
+/* sslinuX-4.20: Linux 6.19 Color Pipeline Backport
+ * DRM_COLOROP types for hardware-accelerated HDR color management
+ * These enable the Van Gogh (Steam Deck) DC hardware color pipeline
+ */
+#define DRM_COLOROP_1D_CURVE		1
+#define DRM_COLOROP_3D_LUT		2
+#define DRM_COLOROP_POST_CSC		3
+
+struct drm_colorop {
+	__u32 id;
+	__u32 type;
+	__u32 pipeline;
+	__u32 lut_blob_id;
+	__u32 lut_3d_blob_id;
+};
+
+struct drm_colorop_state {
+	__u32 colorop_id;
+	__u32 enabled;
+	__u32 type;
+	__u32 pipeline;
+	__u32 lut_blob_id;
+	__u32 lut_3d_blob_id;
+};
+
+#define DRM_MODE_COLOROP_BYPASS		0
+#define DRM_MODE_COLOROP_1D_CURVE		1
+#define DRM_MODE_COLOROP_3D_LUT		2
+#define DRM_MODE_COLOROP_POST_CSC		3
+
 struct drm_mode_obj_get_properties {
 	__u64 props_ptr;
 	__u64 prop_values_ptr;

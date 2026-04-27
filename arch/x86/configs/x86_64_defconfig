@@ -198,6 +198,10 @@ CONFIG_SERIAL_8250_EXTENDED=y
 CONFIG_SERIAL_8250_MANY_PORTS=y
 CONFIG_SERIAL_8250_SHARE_IRQ=y
 CONFIG_SERIAL_8250_DETECT_IRQ=y
+# sslinuX-4.20: PSI (Pressure Stall Information) for gaming handhelds
+# Enables real-time memory/IO pressure monitoring for Gamescope
+CONFIG_PSI=y
+CONFIG_PSI_DEFAULT_DISABLED=n
 CONFIG_SERIAL_8250_RSA=y
 CONFIG_HW_RANDOM=y
 # CONFIG_HW_RANDOM_INTEL is not set
