@@ -22,12 +22,17 @@
 #define XDP_METADATA_FASTPATH  0x04
 
 #define REG_STATE_NEW		0x0
+#define REG_STATE_UNUSED	0x1
+#define REG_STATE_REGISTERED	0x2
+#define REG_STATE_UNREGISTERED	0x3
 #define MEM_ID_MAX 0xFFFE
 #define MEM_ID_MIN 1
 static int mem_id_next = MEM_ID_MIN;
 
 static bool mem_id_init; /* false */
 static struct rhashtable *mem_id_ht;
+static DEFINE_IDA(mem_id_pool);
+static DEFINE_MUTEX(mem_id_lock);
 
 struct xdp_mem_allocator {
 	struct xdp_mem_info mem;

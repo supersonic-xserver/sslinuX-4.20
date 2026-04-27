@@ -17,6 +17,7 @@
 
 #include <linux/stringify.h>
 #include <linux/types.h>
+#include <linux/stddef.h>
 
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {

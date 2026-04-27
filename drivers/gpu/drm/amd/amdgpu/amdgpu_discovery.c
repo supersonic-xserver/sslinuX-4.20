@@ -35,22 +35,6 @@
 /* IP Discovery magic numbers */
 #define IP_DISCOVERY_MAGIC 0x49444350  /* "IPCP" */
 
-/* Hardware IP block types supported by RDNA 2+ */
-enum amd_ip_hw_ip_type {
-	AMD_IP_GFX = 0,
-	AMD_IP_COMPUTE,
-	AMD_IP_DMA,
-	AMD_IP_UVD,
-	AMD_IP_VCE,
-	AMD_IP_UVD_ENC,
-	AMD_IP_VCN_DEC,
-	AMD_IP_VCN_ENC,
-	AMD_IP_VCN_JPEG,
-	AMD_IP_RT,           /* Ray Tracing hardware block (RDNA 2+) */
-	AMD_IP_VIRTUAL,
-	AMD_IP_NUM,
-};
-
 /* IP Discovery header structure */
 struct ip_discovery_header {
 	uint32_t magic;

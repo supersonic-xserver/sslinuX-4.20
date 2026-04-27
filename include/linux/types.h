@@ -27,7 +27,15 @@ typedef __kernel_timer_t	timer_t;
 typedef __kernel_clockid_t	clockid_t;
 typedef __kernel_mqd_t		mqd_t;
 
+/* In C11+ _Bool is built-in. Define bool via int for pre-C11 compat. */
+/*bool is a keyword in C23 (c23), so don't redefine it*/
+#ifndef __cplusplus
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && __STDC_VERSION__ < 202300L
+typedef int			bool;
+#elif !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
 typedef _Bool			bool;
+#endif
+#endif
 
 typedef __kernel_uid32_t	uid_t;
 typedef __kernel_gid32_t	gid_t;

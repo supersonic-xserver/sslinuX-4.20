@@ -48,6 +48,7 @@
 #include <drm/gpu_scheduler.h>
 
 #include <kgd_kfd_interface.h>
+#include "amdgpu_discovery.h"
 #include "dm_pp_interface.h"
 #include "kgd_pp_interface.h"
 
@@ -253,6 +254,9 @@ struct amdgpu_ip_block_version {
 	const u32 minor;
 	const u32 rev;
 	const struct amd_ip_funcs *funcs;
+	/* Hardware IP type and instance for RDNA 2+ discovery */
+	const enum amd_ip_hw_ip_type hw_ip_type;
+	const uint32_t hw_ip_instance;
 };
 
 struct amdgpu_ip_block {

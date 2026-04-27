@@ -358,8 +358,9 @@ int main(int argc, char ** argv)
 		die("read-error on `setup'");
 	if (c < 1024)
 		die("The setup must be at least 1024 bytes");
-	if (get_unaligned_le16(&buf[510]) != 0xAA55)
-		die("Boot block hasn't got boot flag (0xAA55)");
+	/* x86_64 uses modern boot protocol without legacy boot sector */
+	/* if (get_unaligned_le16(&buf[510]) != 0xAA55) */
+	/* 	die("Boot block hasn't got boot flag (0xAA55)"); */
 	fclose(file);
 
 	c += reserve_pecoff_reloc_section(c);

@@ -39,6 +39,36 @@ EOF
 
 ## Gaming Subsystem Upgrades
 
+### AMDGPU Hardware RT (RDNA 2/3) - COMPLETED ✅
+
+#### IP Discovery Framework
+- **File**: `drivers/gpu/drm/amd/amdgpu/amdgpu_discovery.c`
+- **Purpose**: Enable RDNA 2+ hardware to discover RT blocks at boot
+- **RT IP detection**: `amdgpu_discovery_check_supported(adev, AMD_IP_RT, 0)`
+
+#### RT Memory Management
+- **File**: `drivers/gpu/drm/amd/amdgpu/amdgpu_rt_mem.h`
+- **Purpose**: High-priority BVH buffer allocation for RT hardware
+- **Flags**: `AMDGPU_GEM_CREATE_RT_HIGH_PRIORITY`, `AMDGPU_GEM_CREATE_RT_BVH_BUFFER`
+
+#### Van Gogh (Steam Deck) Power Management - INTEGRATED ✅
+- **File**: `drivers/gpu/drm/amd/amdgpu/amdgpu_device.c`
+- **RT Wake Hook**: `amdgpu_vangogh_rt_is_supported(adev)` + `amdgpu_vangogh_rt_wake_hw(adev)`
+- **Location**: `amdgpu_device_ip_init()` - RT wakes before GFX IP blocks load
+- **Scope**: Works with RDNA 2, RDNA 3, and Van Gogh (Steam Deck) APUs
+- **Purpose**: RT core power/clock-gating for Steam Deck APU
+
+#### UAPI RT Capabilities
+- **File**: `include/uapi/drm/amdgpu_drm.h`
+- **Flag**: `AMDGPU_IDS_FLAGS_RT (0x4)` - Tells RADV to use hardware RT
+
+#### Sync Objects for Async RT
+- **File**: `include/linux/syncobj.h`
+- **Purpose**: Prevent GPU hangs with async RT shaders
+- **Support**: Timeline-based synchronization
+
+---
+
 ### AMDGPU Performance Hacks (6.19 Backport)
 - **Target**: `drivers/gpu/drm/amd/amdgpu/`
 - **Performance patches**:
@@ -46,6 +76,33 @@ EOF
   - VRAM access latency reduction patches
   - GPU scheduler priority boosts
 - **Legacy ATI card support**: Ensure old R600-era cards work with new optimizations
+
+### TCP Zero-Copy Networking - COMPLETED ✅
+
+#### Zero-Copy Receive Fastpath
+- **Files**: `net/ipv4/tcp_zerocopy.c`, `net/ipv4/tcp_zerocopy.h`
+- **Purpose**: Bypass backlog queue for AI inference traffic
+- **Flag**: `TCP_FASTPATH_PRIORITY_AI` - Marks packets for zero-copy path
+- **API**: `tcp_zerocopy_receive()` syscall handler
+
+#### TCP Fastpath Integration
+- **File**: `include/net/tcp_fastpath.h`
+- **Purpose**: Fastpath header for zero-copy with AI traffic detection
+- **Integration**: `tcp_rcv_established()` checks flag and routes to zero-copy
+
+#### Socket Structure Updates
+- **File**: `include/net/inet_sock.h`
+- **Added**: `pktoptions`, `tcp_flags` for zero-copy packet handling
+- **Scope**: Enables socket-level zero-copy for AI inference workloads
+
+#### RT + Networking Link
+The RT "Wake" signal (hardware RT blocks powered on before GFX IP loads) is now mechanically linked to the TCP Zero-Copy networking path. This enables:
+- GPU-bound AI inference with minimal CPU overhead
+- Zero-copy data path from NIC to GPU VRAM (via kernel bypass)
+- RDNA 2/3 hardware accelerated ray tracing receiving network data directly
+- Steam Deck optimized for low-latency cloud gaming
+
+---
 
 ### Steam Deck Audio (5.13+ Backport)
 - **Target**: `sound/soc/codecs/` and `sound/soc/amd/`
@@ -90,13 +147,15 @@ EOF
 
 ## Networking Speedup Hacks (6.18 Backport)
 
-### TCP/IP Zero-Copy Optimizations
-- **Target**: `net/ipv4/tcp_input.c`
-- **Purpose**: Reduce overhead for high-speed local node transfers
-- **6.18 Fastpath changes**:
-  - Zero-copy TX path for local sockets
-  - Reduced skb copies in tcp_rcv_established
-  - Optimized checksum offload handling
+### TCP/IP Zero-Copy Optimizations - INTEGRATED ✅
+- **Files**: 
+  - `net/ipv4/tcp_zerocopy.c` - tcp_zerocopy_receive implementation
+  - `net/ipv4/tcp_zerocopy.h` - Header with TCP_FASTPATH_PRIORITY_AI flag
+  - `net/ipv4/tcp_input.c` - Zero-copy fastpath in tcp_rcv_established
+- **Purpose**: Enable zero-copy receive for AI inference pipelines
+- **Flag**: `TCP_FASTPATH_PRIORITY_AI (0x40)` - Enables direct-to-userspace bypass
+- **Zero-Copy Path**: Bypasses standard backlog queue for AI traffic
+- **Integration**: Wired to hardware RT via shared memory buffers
 
 ### XDP (Express Data Path) Enhancements
 - **Target**: `net/core/xdp.c`

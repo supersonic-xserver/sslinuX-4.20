@@ -7,10 +7,18 @@
 #undef NULL
 #define NULL ((void *)0)
 
-enum {
-	false	= 0,
-	true	= 1
-};
+/* 
+ * In C11/C17 mode, _Bool, true, false are built-in keywords.
+ * For older standards or to ensure compatibility with asm goto,
+ * we provide fallbacks when not available as macros.
+ */
+#ifndef false
+#define false 0
+#endif
+
+#ifndef true
+#define true 1
+#endif
 
 #undef offsetof
 #ifdef __compiler_offsetof

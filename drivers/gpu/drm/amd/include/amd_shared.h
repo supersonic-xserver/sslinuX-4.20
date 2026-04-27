@@ -38,6 +38,7 @@ enum amd_chip_flags {
 	AMD_IS_APU      = 0x00020000UL,
 	AMD_IS_PX       = 0x00040000UL,
 	AMD_EXP_HW_SUPPORT = 0x00080000UL,
+	AMD_IS_RT       = (1 << 20),    /* Ray Tracing hardware support */
 };
 
 enum amd_ip_block_type {
@@ -52,7 +53,8 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_UVD,
 	AMD_IP_BLOCK_TYPE_VCE,
 	AMD_IP_BLOCK_TYPE_ACP,
-	AMD_IP_BLOCK_TYPE_VCN
+	AMD_IP_BLOCK_TYPE_VCN,
+	AMD_IP_BLOCK_TYPE_RT,      /* Ray Tracing block (RDNA 2+) */
 };
 
 enum amd_clockgating_state {

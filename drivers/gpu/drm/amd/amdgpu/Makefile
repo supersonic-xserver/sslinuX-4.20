@@ -155,6 +155,10 @@ amdgpu-y += amdgpu_job.o
 # IP Discovery for RDNA 2+ (hardware RT support)
 amdgpu-y += amdgpu_discovery.o
 
+# sslinuX-4.20: Vanilla Linux 6.18 RT backport for Steam Deck
+# Van Gogh RT Power Management (Steam Deck Ray Tracing)
+amdgpu-y += amdgpu_vangogh_rt.o
+
 # ACP componet
 ifneq ($(CONFIG_DRM_AMD_ACP),)
 amdgpu-y += amdgpu_acp.o

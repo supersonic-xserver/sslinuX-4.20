@@ -219,6 +219,9 @@ struct inet_sock {
 	__be32			mc_addr;
 	struct ip_mc_socklist __rcu	*mc_list;
 	struct inet_cork_full	cork;
+	/* TCP zero-copy: pktoptions for Fastpath AI traffic */
+	struct sk_buff		*pktoptions;
+	__u8			tcp_flags;
 };
 
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */

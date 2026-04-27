@@ -42,6 +42,7 @@
 #include "atom.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_atomfirmware.h"
+#include "amdgpu_vangogh_rt.h"
 #include "amd_pcie.h"
 #ifdef CONFIG_DRM_AMDGPU_SI
 #include "si.h"
@@ -1608,6 +1609,15 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 {
 	int i, r;
+
+	/*
+	 * sslinuX RT Integration: Send "Wake" signal to Ray Accelerators
+	 * before IP discovery. Without this, RT hardware remains dark.
+	 * This must happen after PSP init but before GFX blocks load.
+	 * Works with RDNA 2/3 and Van Gogh (Steam Deck).
+	 */
+	if (amdgpu_vangogh_rt_is_supported(adev))
+		amdgpu_vangogh_rt_wake_hw(adev);
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
