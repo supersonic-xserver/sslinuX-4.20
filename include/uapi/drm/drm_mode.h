@@ -29,6 +29,9 @@
 
 #include "drm.h"
 
+/* sslinuX-4.20: Forward declaration for drm_property_blob */
+struct drm_property_blob;
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -449,12 +452,23 @@ struct drm_mode_connector_set_property {
 #define DRM_COLOROP_3D_LUT		2
 #define DRM_COLOROP_POST_CSC		3
 
+/* sslinuX-4.20: Linux 6.19 Color Pipeline Backport
+ * Extended struct drm_colorop with kernel-internal members
+ * for color pipeline support on Van Gogh (Steam Deck) hardware.
+ */
 struct drm_colorop {
 	__u32 id;
 	__u32 type;
 	__u32 pipeline;
 	__u32 lut_blob_id;
 	__u32 lut_3d_blob_id;
+
+	/* sslinuX-4.20: Kernel-internal members (not in UAPI)
+	 * These enable list traversal in amdgpu_dm_color.c
+	 */
+	struct list_head head;
+	struct drm_property_blob *lut;
+	struct drm_property_blob *lut_3d;
 };
 
 struct drm_colorop_state {

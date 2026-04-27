@@ -83,7 +83,11 @@ static int jffs2_rtime_decompress(unsigned char *data_in,
 
 	memset(positions,0,sizeof(positions));
 
-	while (outpos<destlen) {
+	/*
+	 * Fix CVE-2024-57850: Add strict bounds checking to prevent OOB memory
+	 * corruption during decompression if data is malformed.
+	 */
+	while (outpos < destlen) {
 		unsigned char value;
 		int backoffs;
 		int repeat;

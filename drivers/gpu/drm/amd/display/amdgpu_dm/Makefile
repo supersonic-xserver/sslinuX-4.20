@@ -36,6 +36,7 @@ AMDGPUDM += amdgpu_dm_crc.o amdgpu_dm_debugfs.o
 endif
 
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc
+subdir-ccflags-y += -I$(FULL_AMD_PATH)/amdgpu
 
 AMDGPU_DM = $(addprefix $(AMDDALPATH)/amdgpu_dm/,$(AMDGPUDM))
 

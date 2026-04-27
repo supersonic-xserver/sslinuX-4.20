@@ -23,12 +23,33 @@
  *
  */
 
-#include "amdgpu_mode.h"
+#include "../../amdgpu/amdgpu_mode.h"
 #include "amdgpu_dm.h"
+#include "amdgpu.h"
 #include "dc.h"
 #include "modules/color/color_gamma.h"
 
+#include <drm/drm_color_mgmt.h>
+
 #define MAX_DRM_LUT_VALUE 0xFFFF
+
+/*
+ * sslinuX-4.20: Color pipeline shims for Van Gogh (Steam Deck)
+ * DRM_COLOROP_* constants are not defined in Linux 4.20 DRM headers.
+ * These provide local definitions for the future color pipeline interface.
+ */
+#ifndef DRM_COLOROP_1D_CURVE
+#define DRM_COLOROP_1D_CURVE 1
+#define DRM_COLOROP_3D_LUT   2
+#endif
+
+/*
+ * Helper macro to cast drm_device to amdgpu_device.
+ * Required for Van Gogh color pipeline hooks.
+ */
+#ifndef to_amdgpu_device
+#define to_amdgpu_device(x) ((struct amdgpu_device *)(x)->dev_private)
+#endif
 
 /* sslinuX-4.20: Linux 6.19/7.0 Color Pipeline Backport
  * DRM_COLOROP hooks for Van Gogh (Steam Deck) DC hardware.
@@ -69,53 +90,11 @@ void amdgpu_dm_update_plane_color_pipeline(struct drm_plane *plane,
 					   struct dc_plane_state *dc_plane,
 					   struct dc_state *dc_state)
 {
-	struct amdgpu_display_manager *dm = &to_amdgpu_device(plane->dev)->dm;
-	struct drm_plane_state *state = plane->state;
-	struct drm_colorop *colorop;
-	struct drm_property_blob *lut_blob;
-	
-	if (!state || !dm->dc)
-		return;
 
-	/* Iterate through plane's colorops */
-	list_for_each_entry(colorop, &plane->colorop_list, head) {
-		if (!amdgpu_dm_colorop_supported(dm->dc, colorop->type))
-			continue;
-
-		switch (colorop->type) {
-		case DRM_COLOROP_1D_CURVE:
-			/* Map 1D curve to DC shaper LUT */
-			lut_blob = drm_property_blob_get(colorop->lut);
-			if (lut_blob) {
-				/* Configure DC shaper LUT for HDR */
-				dc_plane->in_transfer_func->type = TF_TYPE_DISTRIBUTED_POINTS;
-				/* Actual DC programming would happen here */
-				drm_property_blob_put(lut_blob);
-			}
-			break;
-
-		case DRM_COLOROP_3D_LUT:
-			/* Map 3D LUT to DC */
-			lut_blob = drm_property_blob_get(colorop->lut_3d);
-			if (lut_blob) {
-				/* Configure DC 3D LUT for HDR color management */
-				/* Actual DC programming would happen here */
-				drm_property_blob_put(lut_blob);
-			}
-			break;
-
-		default:
-			break;
-		}
-	}
-
-	/* Log color pipeline initialization for debugging */
-	DRM_DEBUG_KMS("amdgpu_dm: color pipeline initialized for plane %d\n",
-		      plane->base.id);
+	/* sslinuX-4.20: Stubbed - DRM_COLOROP not in 4.20 base DRM */
+	return;
 }
-
-/*
- * Initialize the color module.
+ /* Initialize the color module.
  *
  * We're not using the full color module, only certain components.
  * Only call setup functions for components that we need.

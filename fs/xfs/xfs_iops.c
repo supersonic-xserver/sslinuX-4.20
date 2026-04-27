@@ -172,6 +172,13 @@ xfs_generic_create(
 
 	inode = VFS_I(ip);
 
+	/*
+	 * Fix CVE-2021-4037: Ensure proper SGID inheritance for non-directory
+	 * files in SGID directories. This must be called before
+	 * xfs_init_security to properly set ownership.
+	 */
+	inode_initOwner(inode, dir, mode);
+
 	error = xfs_init_security(inode, dir, &dentry->d_name);
 	if (unlikely(error))
 		goto out_cleanup_inode;

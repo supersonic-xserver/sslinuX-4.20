@@ -576,7 +576,12 @@ mlxsw_sp_acl_tcam_region_destroy(struct mlxsw_sp *mlxsw_sp,
 	ops->region_fini(mlxsw_sp, region->priv);
 	mlxsw_sp_acl_tcam_region_disable(mlxsw_sp, region);
 	mlxsw_sp_acl_tcam_region_free(mlxsw_sp, region);
-	mlxsw_sp_acl_tcam_region_id_put(region->group->tcam, region->id);
+	/*
+	 * Fix CVE-2024-26595: Check group is non-NULL before dereferencing.
+	 * region->group may be NULL if region_attach failed.
+	 */
+	if (region->group)
+		mlxsw_sp_acl_tcam_region_id_put(region->group->tcam, region->id);
 	mlxsw_afk_key_info_put(region->key_info);
 	kfree(region);
 }

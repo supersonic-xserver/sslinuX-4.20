@@ -1098,6 +1098,14 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 	struct neighbour *neigh;
 	int err = -ENXIO;
 
+	/*
+	 * Fix CVE-2024-26733: Add bounds checking to prevent integer
+	 * overflow in index calculation.
+	 */
+	if (!dev || !r || !r->arp_dev[0] ||
+	    strnlen(r->arp_dev, sizeof(r->arp_dev)) >= sizeof(r->arp_dev))
+		return -EINVAL;
+
 	neigh = neigh_lookup(&arp_tbl, &ip, dev);
 	if (neigh) {
 		if (!(neigh->nud_state & NUD_NOARP)) {

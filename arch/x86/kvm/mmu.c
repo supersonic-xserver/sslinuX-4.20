@@ -5481,6 +5481,13 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 	bool tlb_flush = false;
 	uint i;
 
+	/*
+	 * Fix CVE-2022-1789: Ensure mmu->invlpg is not NULL before calling.
+	 * This can happen when shadow paging is enabled but CR0.PG is disabled.
+	 */
+	if (!mmu->invlpg)
+		return;
+
 	if (pcid == kvm_get_active_pcid(vcpu)) {
 		mmu->invlpg(vcpu, gva, mmu->root_hpa);
 		tlb_flush = true;

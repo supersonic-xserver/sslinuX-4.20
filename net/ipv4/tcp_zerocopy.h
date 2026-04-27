@@ -68,8 +68,12 @@ void tcp_zerocopy_rectify_finished(struct socket *sk, unsigned int length,
 bool tcp_zerocopy_can_zerocopy(struct socket *sk);
 
 /* Fast-path priority hints for gaming/AI traffic */
+#ifndef TCP_FASTPATH_PRIORITY_GAMING
 #define TCP_FASTPATH_PRIORITY_GAMING	0x01
-#define TCP_FASTPATH_PRIORITY_AI		0x02
+#endif
+#ifndef TCP_FASTPATH_PRIORITY_AI
+#define TCP_FASTPATH_PRIORITY_AI	0x01
+#endif
 
 /**
  * tcp_set_fastpath_priority - Set fast-path priority hint

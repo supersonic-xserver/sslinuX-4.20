@@ -37,26 +37,21 @@ static struct tcp_zerocopy_state zcs_pool;
 static int tcp_zerocopy_bind(struct socket *sock, struct tcp_zerocopy_state *zcs,
 			    struct tcp_zerocopy_rectifier *zc)
 {
-	struct sock *sk = sock->sk;
-	size_t size;
-	int err;
-
 	/* Validate parameters */
 	if (!zc || zc->length == 0 || !zc->address)
 		return -EINVAL;
 
-	size = zc->length;
-	if (size > TCP_ZEROCOPY_MAX_SIZE)
+	if (zc->length > TCP_ZEROCOPY_MAX_SIZE)
 		return -EINVAL;
 
 	/* Allocate pages for zero-copy mapping */
-	zcs->nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	zcs->nr_pages = (zc->length + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	zcs->pages = alloc_pages(GFP_KERNEL, zcs->nr_pages);
 	if (!zcs->pages)
 		return -ENOMEM;
 
 	zcs->address = zc->address;
-	zcs->length = size;
+	zcs->length = zc->length;
 	zcs->offset = zc->offset;
 	zcs->copybuf_len = zc->copybuf_len;
 	zcs->flags = zc->flags;
