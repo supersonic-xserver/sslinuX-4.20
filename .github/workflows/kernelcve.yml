@@ -1,13 +1,10 @@
 name: "Kernel CVE Audit (Cooker)"
 
 on:
-  pull_request:
-    branches: [ "ssX-dev" ]
   workflow_dispatch:
 
 jobs:
   cve-scan:
-    # We still use the Ubuntu runner, but we execute everything inside the Cooker container
     runs-on: ubuntu-latest
     container:
       image: openmandriva/cooker
@@ -19,41 +16,43 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install Dependencies (OMV Cooker)
+      - name: Install and Run CVE Scan
+        shell: bash
         run: |
-          dnf --refresh install -y \
-            coccinelle \
-            python3-pip \
-            python3-devel \
-            gcc \
-            grep \
-            tar
-
-      - name: Install CVEhound
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install cvehound
-          cvehound_update_rules
-
-      - name: Comprehensive CVE Scan
-        run: |
-          echo "--- STARTING FULL KERNEL SCAN (COOKER ENV) ---" > cve_report.txt
+          # 1. Refresh and Install System Deps
+          dnf --refresh install -y coccinelle python3-pip python3-devel gcc grep tar
           
-          echo "## EXPLOITABLE VULNERABILITIES (Full Tree) ##" >> cve_report.txt
+          # 2. Install CVEhound with root override
+          python3 -m pip install --upgrade pip
+          python3 -m pip install cvehound --root-user-action=ignore
+          
+          # 3. Ensure the rules are updated
+          # Using python3 -m to ensure it finds the package in the site-packages
+          python3 -m cvehound.scripts.update_rules || cvehound_update_rules
+          
+          # 4. Execute Full Scan
+          echo "--- STARTING FULL KERNEL SCAN (COOKER) ---" > cve_report.txt
+          
+          echo "## EXPLOITABLE VULNERABILITIES ##" >> cve_report.txt
           cvehound --kernel . --exploit >> cve_report.txt || true
           
-          echo -e "\n## COMPREHENSIVE SCAN (All Folders) ##" >> cve_report.txt
+          echo -e "\n## HIGH SEVERITY SCAN ##" >> cve_report.txt
           cvehound --kernel . --min-severity high >> cve_report.txt || true
           
           echo "--- SCAN COMPLETE ---" >> cve_report.txt
 
       - name: Generate Log Summary
+        if: always()
         run: |
-          echo "### CVE Scan Summary (OpenMandriva Cooker)" >> $GITHUB_STEP_SUMMARY
-          echo "Total Critical/High findings: $(grep -c 'CVE-' cve_report.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          echo "Exploitable patterns found: $(grep -i -c 'exploit' cve_report.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          if [ -f cve_report.txt ]; then
+            echo "### CVE Scan Summary (OpenMandriva Cooker)" >> $GITHUB_STEP_SUMMARY
+            echo "Findings: $(grep -c 'CVE-' cve_report.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### CVE Scan Failed to produce report" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload CVE Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cooker-kernel-cve-report
