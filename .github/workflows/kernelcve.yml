@@ -1,4 +1,4 @@
-name: "Kernel CVE Audit"
+name: "Kernel CVE Audit (Cooker)"
 
 on:
   pull_request:
@@ -7,36 +7,54 @@ on:
 
 jobs:
   cve-scan:
+    # We still use the Ubuntu runner, but we execute everything inside the Cooker container
     runs-on: ubuntu-latest
+    container:
+      image: openmandriva/cooker
+      options: --user root
+
     steps:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Install Dependencies
+      - name: Install Dependencies (OMV Cooker)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y coccinelle python3-pip grep
+          dnf --refresh install -y \
+            coccinelle \
+            python3-pip \
+            python3-devel \
+            gcc \
+            grep \
+            tar
 
       - name: Install CVEhound
         run: |
           python3 -m pip install --upgrade pip
           pip install cvehound
-          # Update rules to include the latest 2026 data
           cvehound_update_rules
 
-      - name: Run CVE Scan
+      - name: Comprehensive CVE Scan
         run: |
-          # Scanning the specific amdgpu and net domains first to reduce noise
-          echo "### Scanning AMDGPU and IPv4 Domains for CVEs ###"
-          cvehound --kernel . --files drivers/gpu/drm/amd/ net/ipv4/ > cve_report.txt || true
+          echo "--- STARTING FULL KERNEL SCAN (COOKER ENV) ---" > cve_report.txt
           
-          echo "### Full Kernel Scan (Critical & High Only) ###"
+          echo "## EXPLOITABLE VULNERABILITIES (Full Tree) ##" >> cve_report.txt
           cvehound --kernel . --exploit >> cve_report.txt || true
+          
+          echo -e "\n## COMPREHENSIVE SCAN (All Folders) ##" >> cve_report.txt
+          cvehound --kernel . --min-severity high >> cve_report.txt || true
+          
+          echo "--- SCAN COMPLETE ---" >> cve_report.txt
+
+      - name: Generate Log Summary
+        run: |
+          echo "### CVE Scan Summary (OpenMandriva Cooker)" >> $GITHUB_STEP_SUMMARY
+          echo "Total Critical/High findings: $(grep -c 'CVE-' cve_report.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
+          echo "Exploitable patterns found: $(grep -i -c 'exploit' cve_report.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload CVE Report
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-cve-report
+          name: cooker-kernel-cve-report
           path: cve_report.txt
