@@ -1,0 +1,64 @@
+name: "OpenMandriva Cooker Kernel Build & CodeQL"
+
+on:
+  push:
+    branches: [ "main", "ssX-dev" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  analyze-and-build:
+    name: Build & Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup OpenMandriva Cooker Environment
+        run: |
+          # Use a container or install DNF for OM repo access
+          sudo apt-get update && sudo apt-get install -y dnf
+          
+          # Add OpenMandriva Cooker Repositories
+          sudo dnf config-manager --add-repo http://mirror.openmandriva.org/cooker/repository/x86_64/main/release/
+          sudo dnf --disablerepo="*" --enablerepo="cooker-x86_64" --nogpgcheck install -y \
+            gcc clang make binutils flex bison elfutils-devel openssl-devel \
+            kernel-desktop-devel \
+            bc dwarves perl-devel
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'cpp'
+          # Manual build mode is required for specialized kernel builds
+          build-mode: manual
+
+      - name: Build Kernel (Manual Step for CodeQL)
+        run: |
+          # Ensure we are using the latest headers pulled from Cooker
+          # Link the Cooker headers to the build tree if necessary
+          export KERNEL_HEADERS=/usr/src/kernels/$(ls /usr/src/kernels | head -n 1)
+          
+          # Initialize the ssX configuration
+          make x86_64_defconfig
+          
+          # Compile the kernel - CodeQL will trace this execution
+          make -j$(nproc) bzImage modules
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:cpp"
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sslinuX-4.20-Cooker-bzImage
+          path: arch/x86/boot/bzImage
