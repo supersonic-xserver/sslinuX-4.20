@@ -17,10 +17,13 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies
+      - name: Install Modern Spatch & Deps
         run: |
+          # Add PPA for newer Coccinelle (spatch) versions
+          sudo add-apt-repository ppa:npalix/coccinelle -y
           sudo apt-get update
           sudo apt-get install -y coccinelle grep
+          spatch --version  # Verify we are >= 1.1.2
 
       - name: Install CVEhound
         run: |
@@ -32,24 +35,18 @@ jobs:
         run: |
           echo "--- STARTING FULL KERNEL SCAN ---" > cve_report.txt
           
-          echo "## KNOWN EXPLOIT PATTERNS ##" >> cve_report.txt
-          cvehound --kernel . --exploit >> cve_report.txt || true
+          # Capture both stdout and stderr (2>&1) and use the internal --report flag
+          echo "## EXPLOITABLE VULNERABILITIES ##" >> cve_report.txt
+          cvehound --kernel . --exploit --report exploit_results.txt 2>&1 || true
           
-          echo -e "\n## ALL DETECTED CVE PATTERNS ##" >> cve_report.txt
-          # Running without the severity flag so it actually executes
-          cvehound --kernel . >> cve_report.txt || true
+          echo -e "\n## ALL CVE PATTERNS ##" >> cve_report.txt
+          cvehound --kernel . --report full_results.txt 2>&1 || true
+          
+          # Consolidate results
+          cat exploit_results.txt >> cve_report.txt 2>/dev/null || echo "No exploit patterns found." >> cve_report.txt
+          cat full_results.txt >> cve_report.txt 2>/dev/null || echo "No general CVEs found." >> cve_report.txt
           
           echo "--- SCAN COMPLETE ---" >> cve_report.txt
-
-      - name: Generate Log Summary
-        if: always()
-        run: |
-          if [ -f cve_report.txt ]; then
-            echo "### CVE Scan Summary" >> $GITHUB_STEP_SUMMARY
-            echo "Findings: $(grep -c 'CVE-' cve_report.txt || echo 0)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### CVE Scan Failed to produce report" >> $GITHUB_STEP_SUMMARY
-          fi
 
       - name: Upload CVE Report
         if: always()
