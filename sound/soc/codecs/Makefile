@@ -515,3 +515,20 @@ obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
 obj-$(CONFIG_SND_SOC_MAX98504)	+= snd-soc-max98504.o
 obj-$(CONFIG_SND_SOC_SIMPLE_AMPLIFIER)	+= snd-soc-simple-amplifier.o
 obj-$(CONFIG_SND_SOC_TPA6130A2)	+= snd-soc-tpa6130a2.o
+
+# Steam Deck Audio Support (Buster Reborn Backport)
+# CS35L41 - Smart Amplifier
+snd-soc-cs35l41-objs := cs35l41.o cs35l41-lib.o
+snd-soc-cs35l41-i2c-objs := cs35l41-i2c.o
+snd-soc-cs35l41-spi-objs := cs35l41-spi.o
+
+obj-$(CONFIG_SND_SOC_CS35L41)	+= snd-soc-cs35l41.o
+obj-$(CONFIG_SND_SOC_CS35L41_I2C)	+= snd-soc-cs35l41-i2c.o
+obj-$(CONFIG_SND_SOC_CS35L41_SPI)	+= snd-soc-cs35l41-spi.o
+
+# CS42L43 - Audio Codec
+snd-soc-cs42l43-objs := cs42l43.o cs42l43-jack.o
+snd-soc-cs42l43-sdw-objs := cs42l43-sdw.o
+
+obj-$(CONFIG_SND_SOC_CS42L43)	+= snd-soc-cs42l43.o
+obj-$(CONFIG_SND_SOC_CS42L43_SDW)	+= snd-soc-cs42l43-sdw.o
