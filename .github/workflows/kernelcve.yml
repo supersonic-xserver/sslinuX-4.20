@@ -1,0 +1,42 @@
+name: "Kernel CVE Audit"
+
+on:
+  pull_request:
+    branches: [ "ssX-dev" ]
+  workflow_dispatch:
+
+jobs:
+  cve-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y coccinelle python3-pip grep
+
+      - name: Install CVEhound
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install cvehound
+          # Update rules to include the latest 2026 data
+          cvehound_update_rules
+
+      - name: Run CVE Scan
+        run: |
+          # Scanning the specific amdgpu and net domains first to reduce noise
+          echo "### Scanning AMDGPU and IPv4 Domains for CVEs ###"
+          cvehound --kernel . --files drivers/gpu/drm/amd/ net/ipv4/ > cve_report.txt || true
+          
+          echo "### Full Kernel Scan (Critical & High Only) ###"
+          cvehound --kernel . --exploit >> cve_report.txt || true
+
+      - name: Upload CVE Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-cve-report
+          path: cve_report.txt
