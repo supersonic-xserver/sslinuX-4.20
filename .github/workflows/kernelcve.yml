@@ -17,13 +17,24 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Modern Spatch & Deps
+      - name: Install Dependencies & Build Modern Spatch
         run: |
-          # Add PPA for newer Coccinelle (spatch) versions
-          sudo add-apt-repository ppa:npalix/coccinelle -y
+          # Remove broken PPA if it was added in a previous run
+          sudo add-apt-repository --remove ppa:npalix/coccinelle -y || true
+          
+          # Install OCaml and build tools
           sudo apt-get update
-          sudo apt-get install -y coccinelle grep
-          spatch --version  # Verify we are >= 1.1.2
+          sudo apt-get install -y ocaml-nox libpcre3-dev menhir libparmap-ocaml-dev libpcre-ocaml-dev \
+                                 autoconf automake libtool make python3-dev
+          
+          # Build Coccinelle 1.3+ from source
+          git clone --depth 1 https://github.com/coccinelle/coccinelle.git
+          cd coccinelle
+          ./autogen
+          ./configure --with-python=python3 --without-ocamllib
+          make -j$(nproc)
+          sudo make install
+          spatch --version  # Should now show 1.3.x
 
       - name: Install CVEhound
         run: |
