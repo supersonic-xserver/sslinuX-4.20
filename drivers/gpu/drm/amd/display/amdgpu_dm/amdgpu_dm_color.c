@@ -77,22 +77,177 @@ static bool amdgpu_dm_colorop_supported(struct dc *dc, int type)
 	}
 }
 
+/*
+ * Translate a drm_color_lut blob into dc_transfer_func distributed points.
+ *
+ * drm_color_lut entries are u16 [0, 0xFFFF].
+ * DC distributed points use uint32_t in the same range.
+ */
+static int dm_lut_to_dc_tf(const struct drm_property_blob *lut_blob,
+				  struct dc_transfer_func *out_tf,
+				  enum dc_transfer_func_predefined dc_tf_type)
+{
+	const struct drm_color_lut *lut;
+	size_t lut_size, i;
+
+	if (!lut_blob || !out_tf)
+		return -EINVAL;
+
+	lut      = lut_blob->data;
+	lut_size = lut_blob->length / sizeof(*lut);
+
+	if (lut_size > TRANSFER_FUNC_POINTS) {
+		DRM_ERROR("sslinuX: LUT size %zu exceeds DC max %d\n",
+			  lut_size, TRANSFER_FUNC_POINTS);
+		return -ERANGE;
+	}
+
+	out_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
+	out_tf->tf   = dc_tf_type;
+
+	for (i = 0; i < lut_size; i++) {
+		out_tf->tf_pts.red[i]   = drm_color_lut_extract(lut[i].red,   16);
+		out_tf->tf_pts.green[i] = drm_color_lut_extract(lut[i].green, 16);
+		out_tf->tf_pts.blue[i]  = drm_color_lut_extract(lut[i].blue,  16);
+	}
+	out_tf->tf_pts.end_exponent        = 0;
+	out_tf->tf_pts.x_point_at_y1_red   = 1;
+	out_tf->tf_pts.x_point_at_y1_green = 1;
+	out_tf->tf_pts.x_point_at_y1_blue  = 1;
+
+	return 0;
+}
+
+/*
+ * Translate drm_color_ctm (s31.32, column-major, 9 entries) into
+ * dc_csc_transform (s0.12, row-major, 3x4 with zero translation column).
+ */
+static void dm_ctm_to_dc_matrix(const struct drm_property_blob *ctm_blob,
+				      struct dc_csc_transform *out_matrix)
+{
+	const struct drm_color_ctm *ctm;
+	int i;
+
+	if (!ctm_blob || !out_matrix)
+		return;
+
+	ctm = ctm_blob->data;
+
+	for (i = 0; i < 9; i++) {
+		int64_t val      = (int64_t)ctm->matrix[i];
+		bool    negative = !!(val & (1ULL << 63));
+		int32_t conv;
+
+		if (negative)
+			val = -(val & ~(1ULL << 63));
+
+		/* DRM: s31.32. DC: s0.12. Scale = 2^12 / 2^32 */
+		conv = (int32_t)div64_s64(val * (1 << 12), (1LL << 32));
+
+		if (negative)
+			conv = -conv;
+
+		out_matrix->matrix[i / 3][i % 3] = conv;
+	}
+	out_matrix->matrix[0][3]       = 0;
+	out_matrix->matrix[1][3]       = 0;
+	out_matrix->matrix[2][3]       = 0;
+	out_matrix->enable_adjustment  = true;
+}
+
 /**
  * amdgpu_dm_update_plane_color_pipeline - Update plane color pipeline
  * @plane: DRM plane
  * @dc_plane: DC plane state
  * @dc_state: DC state
  *
- * Maps DRM_COLOROP_1D_CURVE and DRM_COLOROP_3D_LUT to Van Gogh DC hardware.
- * This allows Gamescope to bypass shader-based color management.
+ * Applies DRM color management blobs (degamma, CTM, gamma) from the
+ * plane state to the DC plane hardware.
  */
 void amdgpu_dm_update_plane_color_pipeline(struct drm_plane *plane,
 					   struct dc_plane_state *dc_plane,
 					   struct dc_state *dc_state)
 {
+	struct drm_plane_state *state;
 
-	/* sslinuX-4.20: Stubbed - DRM_COLOROP not in 4.20 base DRM */
-	return;
+	if (!plane || !plane->state || !dc_plane)
+		return;
+
+	state = plane->state;
+
+	/* --- Degamma: DEGAMMA_LUT -> dc_plane->in_transfer_func --- */
+	if (state->degamma_lut) {
+		if (!dc_plane->in_transfer_func) {
+			dc_plane->in_transfer_func = dc_create_transfer_func();
+			if (!dc_plane->in_transfer_func) {
+				DRM_ERROR("sslinuX: failed to alloc in_transfer_func\n");
+				return;
+			}
+		}
+
+		dm_lut_to_dc_tf(state->degamma_lut,
+				     dc_plane->in_transfer_func,
+				     TRANSFER_FUNCTION_SRGB);
+	} else {
+		if (dc_plane->in_transfer_func)
+			dc_plane->in_transfer_func->type = TF_TYPE_BYPASS;
+	}
+
+	/* --- CTM: drm_color_ctm -> dc_plane->csc_color_matrix --- */
+	if (state->ctm) {
+		dm_ctm_to_dc_matrix(state->ctm, &dc_plane->csc_color_matrix);
+	} else {
+		dc_plane->csc_color_matrix.enable_adjustment = false;
+	}
+
+	/* --- Regamma: GAMMA_LUT -> dc_plane->gamma_correction --- */
+	if (state->gamma_lut) {
+		struct drm_color_lut *lut;
+		struct dc_gamma *gamma;
+		size_t lut_size;
+		int i;
+
+		if (!dc_plane->gamma_correction) {
+			dc_plane->gamma_correction = dc_create_gamma();
+			if (!dc_plane->gamma_correction) {
+				DRM_ERROR("sslinuX: failed to alloc gamma_correction\n");
+				return;
+			}
+		}
+
+		lut = (struct drm_color_lut *)state->gamma_lut->data;
+		lut_size = state->gamma_lut->length / sizeof(*lut);
+
+		if (lut_size > MAX_COLOR_LUT_ENTRIES) {
+			DRM_ERROR("sslinuX: gamma LUT size %zu exceeds max %d\n",
+				  lut_size, MAX_COLOR_LUT_ENTRIES);
+			return;
+		}
+
+		gamma = dc_plane->gamma_correction;
+		gamma->num_entries = lut_size;
+		gamma->type = (lut_size == MAX_COLOR_LEGACY_LUT_ENTRIES) ?
+			      GAMMA_RGB_256 : GAMMA_CS_TFM_1D;
+
+		for (i = 0; i < lut_size; i++) {
+			uint32_t r = drm_color_lut_extract(lut[i].red, 16);
+			uint32_t g = drm_color_lut_extract(lut[i].green, 16);
+			uint32_t b = drm_color_lut_extract(lut[i].blue, 16);
+
+			if (gamma->type == GAMMA_RGB_256) {
+				gamma->entries.red[i]   = dc_fixpt_from_int(r);
+				gamma->entries.green[i] = dc_fixpt_from_int(g);
+				gamma->entries.blue[i]  = dc_fixpt_from_int(b);
+			} else {
+				gamma->entries.red[i]   = dc_fixpt_from_fraction(r, MAX_DRM_LUT_VALUE);
+				gamma->entries.green[i] = dc_fixpt_from_fraction(g, MAX_DRM_LUT_VALUE);
+				gamma->entries.blue[i]  = dc_fixpt_from_fraction(b, MAX_DRM_LUT_VALUE);
+			}
+		}
+	}
+
+	DRM_DEBUG_KMS("sslinuX: color pipeline committed for plane %d\n",
+		     plane->base.id);
 }
  /* Initialize the color module.
  *

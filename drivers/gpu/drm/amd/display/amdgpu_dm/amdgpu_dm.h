@@ -184,6 +184,8 @@ struct amdgpu_display_manager;
 struct dc_validation_set;
 struct dc_plane_state;
 
+#define to_dm_plane_state(x) container_of(x, struct dm_plane_state, base)
+
 struct dm_plane_state {
 	struct drm_plane_state base;
 	struct dc_plane_state *dc_state;

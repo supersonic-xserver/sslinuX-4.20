@@ -92,6 +92,10 @@ static int jffs2_rtime_decompress(unsigned char *data_in,
 		int backoffs;
 		int repeat;
 
+		/* CVE-2024-57850: OOB read guard on malformed input. */
+		if (pos >= srclen)
+			break;
+
 		value = data_in[pos++];
 		cpage_out[outpos++] = value; /* first the verbatim copied byte */
 		repeat = data_in[pos++];

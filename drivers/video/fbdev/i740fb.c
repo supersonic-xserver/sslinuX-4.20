@@ -661,15 +661,7 @@ static int i740fb_decode_var(const struct fb_var_screeninfo *var,
 
 static int i740fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	/*
-	 * Fix CVE-2022-3061: Prevent division by zero when pixclock is 0.
-	 */
-	if (!var->pixclock)
-		return -EINVAL;
-	/*
-	 * Fix CVE-2022-3061: Prevent division by zero in pixclock.
-	 * User-space can pass 0 via ioctl causing kernel panic.
-	 */
+	/* Fix CVE-2022-3061: Prevent division by zero when pixclock is 0. */
 	if (!var->pixclock)
 		return -EINVAL;
 
