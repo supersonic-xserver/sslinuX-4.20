@@ -30,6 +30,7 @@
 #include "modules/color/color_gamma.h"
 
 #include <drm/drm_color_mgmt.h>
+#include <drm/drm_crtc.h>
 
 #define MAX_DRM_LUT_VALUE 0xFFFF
 
@@ -106,9 +107,12 @@ static int dm_lut_to_dc_tf(const struct drm_property_blob *lut_blob,
 	out_tf->tf   = dc_tf_type;
 
 	for (i = 0; i < lut_size; i++) {
-		out_tf->tf_pts.red[i]   = drm_color_lut_extract(lut[i].red,   16);
-		out_tf->tf_pts.green[i] = drm_color_lut_extract(lut[i].green, 16);
-		out_tf->tf_pts.blue[i]  = drm_color_lut_extract(lut[i].blue,  16);
+		out_tf->tf_pts.red[i]   = dc_fixpt_from_fraction(
+			drm_color_lut_extract(lut[i].red,   16), 0xFFFF);
+		out_tf->tf_pts.green[i] = dc_fixpt_from_fraction(
+			drm_color_lut_extract(lut[i].green, 16), 0xFFFF);
+		out_tf->tf_pts.blue[i]  = dc_fixpt_from_fraction(
+			drm_color_lut_extract(lut[i].blue,  16), 0xFFFF);
 	}
 	out_tf->tf_pts.end_exponent        = 0;
 	out_tf->tf_pts.x_point_at_y1_red   = 1;
@@ -147,11 +151,11 @@ static void dm_ctm_to_dc_matrix(const struct drm_property_blob *ctm_blob,
 		if (negative)
 			conv = -conv;
 
-		out_matrix->matrix[i / 3][i % 3] = conv;
+		out_matrix->matrix[(i / 3) * 4 + (i % 3)] = (uint16_t)conv;
 	}
-	out_matrix->matrix[0][3]       = 0;
-	out_matrix->matrix[1][3]       = 0;
-	out_matrix->matrix[2][3]       = 0;
+	out_matrix->matrix[3]  = 0;
+	out_matrix->matrix[7]  = 0;
+	out_matrix->matrix[11] = 0;
 	out_matrix->enable_adjustment  = true;
 }
 
@@ -168,15 +172,23 @@ void amdgpu_dm_update_plane_color_pipeline(struct drm_plane *plane,
 					   struct dc_plane_state *dc_plane,
 					   struct dc_state *dc_state)
 {
-	struct drm_plane_state *state;
+	struct drm_plane_state *plane_state;
+	struct drm_crtc_state *crtc_state;
 
 	if (!plane || !plane->state || !dc_plane)
 		return;
 
-	state = plane->state;
+	if (!plane->state->crtc)
+		return;
+
+	crtc_state = plane->state->crtc->state;
+	if (!crtc_state)
+		return;
+
+	plane_state = plane->state;
 
 	/* --- Degamma: DEGAMMA_LUT -> dc_plane->in_transfer_func --- */
-	if (state->degamma_lut) {
+	if (crtc_state->degamma_lut) {
 		if (!dc_plane->in_transfer_func) {
 			dc_plane->in_transfer_func = dc_create_transfer_func();
 			if (!dc_plane->in_transfer_func) {
@@ -185,7 +197,7 @@ void amdgpu_dm_update_plane_color_pipeline(struct drm_plane *plane,
 			}
 		}
 
-		dm_lut_to_dc_tf(state->degamma_lut,
+		dm_lut_to_dc_tf(crtc_state->degamma_lut,
 				     dc_plane->in_transfer_func,
 				     TRANSFER_FUNCTION_SRGB);
 	} else {
@@ -194,14 +206,14 @@ void amdgpu_dm_update_plane_color_pipeline(struct drm_plane *plane,
 	}
 
 	/* --- CTM: drm_color_ctm -> dc_plane->csc_color_matrix --- */
-	if (state->ctm) {
-		dm_ctm_to_dc_matrix(state->ctm, &dc_plane->input_csc_color_matrix);
+	if (crtc_state->ctm) {
+		dm_ctm_to_dc_matrix(crtc_state->ctm, &dc_plane->input_csc_color_matrix);
 	} else {
 		dc_plane->input_csc_color_matrix.enable_adjustment = false;
 	}
 
 	/* --- Regamma: GAMMA_LUT -> dc_plane->gamma_correction --- */
-	if (state->gamma_lut) {
+	if (crtc_state->gamma_lut) {
 		struct drm_color_lut *lut;
 		struct dc_gamma *gamma;
 		size_t lut_size;
@@ -215,8 +227,8 @@ void amdgpu_dm_update_plane_color_pipeline(struct drm_plane *plane,
 			}
 		}
 
-		lut = (struct drm_color_lut *)state->gamma_lut->data;
-		lut_size = state->gamma_lut->length / sizeof(*lut);
+		lut = (struct drm_color_lut *)crtc_state->gamma_lut->data;
+		lut_size = crtc_state->gamma_lut->length / sizeof(*lut);
 
 		if (lut_size > MAX_COLOR_LUT_ENTRIES) {
 			DRM_ERROR("sslinuX: gamma LUT size %zu exceeds max %d\n",

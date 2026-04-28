@@ -283,6 +283,11 @@ int amdgpu_dm_set_degamma_lut(struct drm_crtc_state *crtc_state,
 void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc);
 int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc);
 
+/* sslinuX-4.20: Color pipeline translation for Van Gogh DC. */
+void amdgpu_dm_update_plane_color_pipeline(struct drm_plane *plane,
+					    struct dc_plane_state *dc_plane,
+					    struct dc_state *dc_state);
+
 extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 
 #endif /* __AMDGPU_DM_H__ */
