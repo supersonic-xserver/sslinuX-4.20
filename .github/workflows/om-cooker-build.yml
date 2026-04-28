@@ -15,26 +15,25 @@ jobs:
       - name: Setup OpenMandriva Cooker Repos
         run: |
           sudo apt-get update && sudo apt-get install -y dnf
-          
-          # Create BOTH possible repo paths to be safe
-          sudo mkdir -p /etc/yum.repos.d/ /etc/dnf/repos.d/
-          
-          # Write the repo file to the legacy path which Ubuntu's DNF prefers
+          sudo mkdir -p /etc/yum.repos.d/
           sudo tee /etc/yum.repos.d/openmandriva-cooker.repo <<EOF
           [cooker-x86_64]
           name=OpenMandriva Cooker x86_64
           baseurl=http://mirror.openmandriva.org/cooker/repository/x86_64/main/release/
           enabled=1
           gpgcheck=0
-          # Ensure we don't try to use system variables that don't exist on Ubuntu
           repo_gpgcheck=0
           EOF
-
-          # Force dnf to acknowledge the new repo and the 'cooker' version
           sudo dnf --releasever=cooker clean all
           sudo dnf --releasever=cooker makecache
-          
-          # Install using the explicit releasever and enablerepo
+          # FIX: Pre-create the missing gconv cache to satisfy the Lua script
+          sudo mkdir -p /usr/lib64/gconv/
+          sudo touch /usr/lib64/gconv/gconv-modules.cache
+
+          # FIX: Manually handle the usr-merge expectation 
+          # This prevents the 'mergedirs' script from failing on a non-native system
+          sudo mkdir -p /usr/sbin
+          # Swapping to OpenMandriva naming conventions
           sudo dnf --releasever=cooker --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
             gcc clang make binutils flex bison \
             lib64elfutils-devel lib64openssl-devel kernel-desktop-devel \
