@@ -38,18 +38,24 @@ jobs:
     - name: Install Cooker Build Dependencies
       if: matrix.language == 'c-cpp'
       run: |
-        sudo apt-get update && sudo apt-get install -y dnf
-        sudo mkdir -p /etc/dnf/repos.d/
-        sudo tee /etc/dnf/repos.d/openmandriva-cooker.repo <<EOF
-        [cooker-x86_64]
-        name=OpenMandriva Cooker x86_64
-        baseurl=http://mirror.openmandriva.org/cooker/repository/x86_64/main/release/
-        enabled=1
-        gpgcheck=0
-        EOF
-        sudo dnf --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
-          gcc clang make binutils flex bison elfutils-devel openssl-devel \
-          kernel-desktop-devel bc dwarves
+          sudo apt-get update && sudo apt-get install -y dnf
+          sudo mkdir -p /etc/yum.repos.d/
+          sudo tee /etc/yum.repos.d/openmandriva-cooker.repo <<EOF
+          [cooker-x86_64]
+          name=OpenMandriva Cooker x86_64
+          baseurl=http://mirror.openmandriva.org/cooker/repository/x86_64/main/release/
+          enabled=1
+          gpgcheck=0
+          repo_gpgcheck=0
+          EOF
+          sudo dnf --releasever=cooker clean all
+          sudo dnf --releasever=cooker makecache
+          
+          # Swapping to OpenMandriva naming conventions
+          sudo dnf --releasever=cooker --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
+            gcc clang make binutils flex bison \
+            lib64elfutils-devel lib64openssl-devel kernel-desktop-devel \
+            bc dwarves
 
     # 2. Initialize CodeQL Tools
     - name: Initialize CodeQL
