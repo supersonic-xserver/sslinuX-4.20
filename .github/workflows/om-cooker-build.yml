@@ -16,8 +16,10 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y dnf
           
-          # Manually create the Cooker repo file since config-manager is missing
+          # Ensure the directory exists
           sudo mkdir -p /etc/dnf/repos.d/
+          
+          # Create the repo file
           sudo tee /etc/dnf/repos.d/openmandriva-cooker.repo <<EOF
           [cooker-x86_64]
           name=OpenMandriva Cooker x86_64
@@ -25,12 +27,15 @@ jobs:
           enabled=1
           gpgcheck=0
           EOF
-
-          # Install dependencies from the latest Cooker headers
-          sudo dnf --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
-            gcc clang make binutils flex bison elfutils-devel openssl-devel \
-            kernel-desktop-devel bc dwarves
-
+          # 1. Force dnf to see the release as 'cooker'
+          # 2. Update cache so it actually finds the repo 'cooker-x86_64'
+          sudo dnf --releasever=cooker makecache
+          
+          # Now install using the explicit releasever
+          sudo dnf --releasever=cooker --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
+            gcc clang make binutils flex bison \
+            elfutils-devel openssl-devel kernel-desktop-devel \
+            bc dwarves
       - name: Build sslinuX Kernel
         run: |
           # Use the latest Cooker headers to guide the build if needed
