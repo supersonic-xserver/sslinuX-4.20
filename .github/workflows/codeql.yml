@@ -69,7 +69,7 @@ jobs:
           # We use --setopt=tsflags=noscripts as a nuclear option if the Lua still complains
           sudo dnf --releasever=cooker --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
             gcc clang make binutils flex bison \
-            lib64elfutils-devel lib64openssl-devel kernel-desktop-devel \
+            lib64elfutils-devel lib64elf-devel lib64openssl-devel kernel-desktop-devel \
             bc dwarves
 
     # 2. Initialize CodeQL Tools
