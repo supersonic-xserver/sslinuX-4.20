@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-- name: Setup OpenMandriva Cooker Repos
+      - name: Setup OpenMandriva Cooker Repos
         run: |
           sudo apt-get update && sudo apt-get install -y dnf
           
