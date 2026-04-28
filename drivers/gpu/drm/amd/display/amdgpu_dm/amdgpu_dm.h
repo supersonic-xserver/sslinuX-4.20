@@ -186,9 +186,15 @@ struct dc_plane_state;
 
 #define to_dm_plane_state(x) container_of(x, struct dm_plane_state, base)
 
+/*
+ * sslinuX-4.20: Color pipeline state tracking.
+ * The 4.20 DRM core does not propagate colorop changes automatically.
+ * We track dirty state manually and translate during atomic commit.
+ */
 struct dm_plane_state {
 	struct drm_plane_state base;
 	struct dc_plane_state *dc_state;
+	bool dm_color_pipeline_dirty;
 };
 
 struct dm_crtc_state {

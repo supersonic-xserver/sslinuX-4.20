@@ -195,9 +195,9 @@ void amdgpu_dm_update_plane_color_pipeline(struct drm_plane *plane,
 
 	/* --- CTM: drm_color_ctm -> dc_plane->csc_color_matrix --- */
 	if (state->ctm) {
-		dm_ctm_to_dc_matrix(state->ctm, &dc_plane->csc_color_matrix);
+		dm_ctm_to_dc_matrix(state->ctm, &dc_plane->input_csc_color_matrix);
 	} else {
-		dc_plane->csc_color_matrix.enable_adjustment = false;
+		dc_plane->input_csc_color_matrix.enable_adjustment = false;
 	}
 
 	/* --- Regamma: GAMMA_LUT -> dc_plane->gamma_correction --- */

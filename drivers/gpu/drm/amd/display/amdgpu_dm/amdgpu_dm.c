@@ -3165,6 +3165,7 @@ static void dm_drm_plane_reset(struct drm_plane *plane)
 		plane->state = &amdgpu_state->base;
 		plane->state->plane = plane;
 		plane->state->rotation = DRM_MODE_ROTATE_0;
+		amdgpu_state->dm_color_pipeline_dirty = false;
 	}
 }
 
@@ -3184,6 +3185,9 @@ dm_drm_plane_duplicate_state(struct drm_plane *plane)
 		dm_plane_state->dc_state = old_dm_plane_state->dc_state;
 		dc_plane_state_retain(dm_plane_state->dc_state);
 	}
+
+	dm_plane_state->dm_color_pipeline_dirty =
+		old_dm_plane_state->dm_color_pipeline_dirty;
 
 	return &dm_plane_state->base;
 }
