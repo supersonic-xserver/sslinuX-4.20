@@ -47,8 +47,7 @@ jobs:
           # The 'noscripts' flag is required for the initial 'filesystem' and 'rootcerts' 
           # packages to prevent the broken Lua pretrans from running at all.
           sudo dnf --releasever=cooker clean all
-          sudo dnf --releasever=cooker -y --setopt=tsflags=noscripts install \
-            openmandriva-repos openmandriva-release
+          sudo dnf --releasever=cooker -y --setopt=tsflags=noscripts install
 
           # 4. INSTALL TOOLCHAIN
           # Now that the core filesystem is laid down, we install the actual tools.
