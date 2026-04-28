@@ -50,7 +50,13 @@ jobs:
           EOF
           sudo dnf --releasever=cooker clean all
           sudo dnf --releasever=cooker makecache
-          
+          # FIX: Pre-create the missing gconv cache to satisfy the Lua script
+          sudo mkdir -p /usr/lib64/gconv/
+          sudo touch /usr/lib64/gconv/gconv-modules.cache
+
+          # FIX: Manually handle the usr-merge expectation 
+          # This prevents the 'mergedirs' script from failing on a non-native system
+          sudo mkdir -p /usr/sbin
           # Swapping to OpenMandriva naming conventions
           sudo dnf --releasever=cooker --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
             gcc clang make binutils flex bison \
