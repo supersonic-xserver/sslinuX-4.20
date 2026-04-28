@@ -37,7 +37,7 @@ jobs:
           # Install using the explicit releasever and enablerepo
           sudo dnf --releasever=cooker --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
             gcc clang make binutils flex bison \
-            elfutils-devel openssl-devel kernel-desktop-devel \
+            lib64elfutils-devel lib64openssl-devel kernel-desktop-devel \
             bc dwarves
       - name: Build sslinuX Kernel
         run: |
