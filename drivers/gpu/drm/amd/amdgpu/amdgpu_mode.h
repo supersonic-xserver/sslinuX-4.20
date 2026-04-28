@@ -59,8 +59,6 @@ struct amdgpu_hpd;
 #define to_amdgpu_framebuffer(x) container_of(x, struct amdgpu_framebuffer, base)
 #define to_amdgpu_plane(x)	container_of(x, struct amdgpu_plane, base)
 
-#define to_dm_plane_state(x)	container_of(x, struct dm_plane_state, base);
-
 #define AMDGPU_MAX_HPD_PINS 6
 #define AMDGPU_MAX_CRTCS 6
 #define AMDGPU_MAX_PLANES 6
