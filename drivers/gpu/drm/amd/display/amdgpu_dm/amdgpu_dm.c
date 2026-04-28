@@ -2170,6 +2170,15 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 		dc_plane_state->in_transfer_func = NULL;
 	}
 
+	/*
+	 * sslinuX-4.20: Mark color pipeline dirty.
+	 * The plane color pipeline will be applied during commit.
+	 */
+	if (plane_state) {
+		struct dm_plane_state *dm_ps = to_dm_plane_state(plane_state);
+		dm_ps->dm_color_pipeline_dirty = true;
+	}
+
 	return ret;
 }
 
@@ -4324,6 +4333,17 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			WARN_ON(!dm_new_plane_state->dc_state);
 
 			plane_states_constructed[planes_count] = dm_new_plane_state->dc_state;
+
+			/*
+			 * sslinuX-4.20: Apply color pipeline if dirty.
+			 * This translates DRM color blobs to DC hardware format.
+			 */
+			if (dm_new_plane_state->dm_color_pipeline_dirty) {
+				amdgpu_dm_update_plane_color_pipeline(
+					plane,
+					dm_new_plane_state->dc_state,
+					dm_state->context);
+			}
 
 			dc_stream_attach = acrtc_state->stream;
 			planes_count++;
