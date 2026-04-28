@@ -12,26 +12,29 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup OpenMandriva Cooker Repos
+- name: Setup OpenMandriva Cooker Repos
         run: |
           sudo apt-get update && sudo apt-get install -y dnf
           
-          # Ensure the directory exists
-          sudo mkdir -p /etc/dnf/repos.d/
+          # Create BOTH possible repo paths to be safe
+          sudo mkdir -p /etc/yum.repos.d/ /etc/dnf/repos.d/
           
-          # Create the repo file
-          sudo tee /etc/dnf/repos.d/openmandriva-cooker.repo <<EOF
+          # Write the repo file to the legacy path which Ubuntu's DNF prefers
+          sudo tee /etc/yum.repos.d/openmandriva-cooker.repo <<EOF
           [cooker-x86_64]
           name=OpenMandriva Cooker x86_64
           baseurl=http://mirror.openmandriva.org/cooker/repository/x86_64/main/release/
           enabled=1
           gpgcheck=0
+          # Ensure we don't try to use system variables that don't exist on Ubuntu
+          repo_gpgcheck=0
           EOF
-          # 1. Force dnf to see the release as 'cooker'
-          # 2. Update cache so it actually finds the repo 'cooker-x86_64'
+
+          # Force dnf to acknowledge the new repo and the 'cooker' version
+          sudo dnf --releasever=cooker clean all
           sudo dnf --releasever=cooker makecache
           
-          # Now install using the explicit releasever
+          # Install using the explicit releasever and enablerepo
           sudo dnf --releasever=cooker --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
             gcc clang make binutils flex bison \
             elfutils-devel openssl-devel kernel-desktop-devel \
