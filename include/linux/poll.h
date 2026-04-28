@@ -76,7 +76,7 @@ static inline void init_poll_funcptr(poll_table *pt, poll_queue_proc qproc)
 
 static inline bool file_can_poll(struct file *file)
 {
-	return file->f_op->poll;
+	return file->f_op->poll != NULL;
 }
 
 static inline __poll_t vfs_poll(struct file *file, struct poll_table_struct *pt)
