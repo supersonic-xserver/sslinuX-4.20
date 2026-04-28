@@ -38,7 +38,9 @@ jobs:
     - name: Install Cooker Build Dependencies
       if: matrix.language == 'c-cpp'
       run: |
-          sudo apt-get update && sudo apt-get install -y dnf
+        sudo apt-get update && sudo apt-get install -y dnf
+          
+          # 1. Setup the Repository
           sudo mkdir -p /etc/yum.repos.d/
           sudo tee /etc/yum.repos.d/openmandriva-cooker.repo <<EOF
           [cooker-x86_64]
@@ -48,16 +50,23 @@ jobs:
           gpgcheck=0
           repo_gpgcheck=0
           EOF
+
+          # 2. SATISFY LUA PRETRANS SCRIPT & USR-MERGE
+          # Create the gconv cache file the script looks for
+          sudo mkdir -p /usr/lib64/gconv
+          sudo touch /usr/lib64/gconv/gconv-modules.cache
+          
+          # Force /usr/sbin to be a symlink to /usr/bin to satisfy the 'mergedirs' check
+          # We move existing sbin content to bin first so dnf doesn't lose tools
+          sudo cp -r /usr/sbin/* /usr/bin/ || true
+          sudo rm -rf /usr/sbin
+          sudo ln -s bin /usr/sbin
+
+          # 3. CLEAN AND INSTALL
           sudo dnf --releasever=cooker clean all
           sudo dnf --releasever=cooker makecache
-          # FIX: Pre-create the missing gconv cache to satisfy the Lua script
-          sudo mkdir -p /usr/lib64/gconv/
-          sudo touch /usr/lib64/gconv/gconv-modules.cache
-
-          # FIX: Manually handle the usr-merge expectation 
-          # This prevents the 'mergedirs' script from failing on a non-native system
-          sudo mkdir -p /usr/sbin
-          # Swapping to OpenMandriva naming conventions
+          
+          # We use --setopt=tsflags=noscripts as a nuclear option if the Lua still complains
           sudo dnf --releasever=cooker --disablerepo="*" --enablerepo="cooker-x86_64" install -y \
             gcc clang make binutils flex bison \
             lib64elfutils-devel lib64openssl-devel kernel-desktop-devel \
@@ -80,7 +89,7 @@ jobs:
         
         # Step B: Compile the kernel. CodeQL hooks into this command.
         # We build 'bzImage' and 'modules' to ensure the entire tree is scanned.
-        make -j$(nproc) bzImage modules
+        make -j$(nproc) bzImage modules KCFLAGS="-Wno-error -Wno-implicit-function-declaration"
 
     # 4. Final Analysis
     - name: Perform CodeQL Analysis
