@@ -43,3 +43,25 @@ config DRM_AMDGPU_GART_DEBUGFS
 
 source "drivers/gpu/drm/amd/acp/Kconfig"
 source "drivers/gpu/drm/amd/display/Kconfig"
+
+config DRM_AMDGPU_USERPTR_RESTRICT
+	bool "Restrict AMDGPU USERPTR to prevent VRAM leaks"
+	depends on DRM_AMDGPU
+	default y
+	help
+	  ssX Security Fix: Restrict USERPTR to prevent unprivileged
+	  users from mapping arbitrary system memory into GPU address
+	  space. This prevents a class of VRAM data leak attacks.
+
+	  If unsure, say Y.
+
+config AMDGPU_SCRUB_SESSION_VRAM
+	bool "Enable VRAM scrubbing on session teardown"
+	depends on DRM_AMDGPU
+	default y
+	help
+	  ssX Security Fix (CVE-2025-9981): Enable automatic VRAM
+	  buffer scrubbing when X sessions close. This prevents Ghost
+	  Frames from appearing in subsequent sessions.
+
+	  If unsure, say Y.
