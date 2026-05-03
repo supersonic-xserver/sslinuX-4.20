@@ -75,11 +75,44 @@ static int aead_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	return af_alg_sendmsg(sock, msg, size, ivsize);
 }
 
+/*
+ * Validate scatterlist has sufficient data for the requested length.
+ * This prevents reading beyond buffer boundaries (CVE-2026-31431/Copyfail).
+ */
+static int validate_sgl_length(struct scatterlist *sgl, unsigned int len)
+{
+	struct scatterlist *sg;
+	unsigned int total = 0;
+
+	for (sg = sgl; sg; sg = sg_next(sg)) {
+		total += sg->length;
+		if (total >= len)
+			return 0;
+	}
+
+	/*
+	 * If we reach here, the scatterlist doesn't have enough data.
+	 * This is a security issue - return error to prevent bounds violation.
+	 */
+	return -EINVAL;
+}
+
 static int crypto_aead_copy_sgl(struct crypto_skcipher *null_tfm,
 				struct scatterlist *src,
 				struct scatterlist *dst, unsigned int len)
 {
 	SKCIPHER_REQUEST_ON_STACK(skreq, null_tfm);
+	int err;
+
+	/* Security fix: Validate source has sufficient data before copy */
+	err = validate_sgl_length(src, len);
+	if (err)
+		return err;
+
+	/* Security fix: Validate destination has sufficient capacity */
+	err = validate_sgl_length(dst, len);
+	if (err)
+		return err;
 
 	skcipher_request_set_tfm(skreq, null_tfm);
 	skcipher_request_set_callback(skreq, CRYPTO_TFM_REQ_MAY_SLEEP,
