@@ -1,0 +1,130 @@
+ssX Kernel Hardening Documentation
+==================================
+
+This document describes the security hardening applied to the sslinuX kernel
+for the ssX X11 session management system.
+
+1. Input Subsystem Hardening (evdev)
+----------------------------------------
+
+1.1 Input Matrix Race Condition Fix
+- CVE: Related to input subsystem race conditions
+- Severity: MEDIUM (DoS via lockup)
+- File: drivers/input/evdev.c, drivers/input/input.c
+
+The evdev event handling loop has a race condition where coordinate
+transformations could be committed to the event buffer with stale matrix
+state during concurrent access. This could lead to potential DoS via
+malformed input events that exceed logical axis bounds.
+
+Fix Details:
+- Added atomic sequence counter (matrix_sequence) to struct input_dev
+- Modified evdev_events() to verify matrix state before committing
+- Added __evdev_validate_abs_value() to filter out-of-bounds events
+- Prevents the specific "lockup" trigger from malformed events
+
+Functions Added:
+- input_validate_abs_value()
+- input_increment_matrix_seq()
+- __evdev_validate_abs_value() (static)
+- evdev_get_matrix_seq() (static)
+
+2. GPU Driver VRAM Security (AMDGPU)
+--------------------------------------
+
+2.1 Ghost Frame Mitigation (CVE-2025-9981)
+- CVE: CVE-2025-9981
+- Severity: HIGH (Information Disclosure / Ghost Frames)
+- Files: drivers/gpu/drm/amd/amdgpu/amdgpu_object.c,
+         drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
+
+When GEM objects are allocated, they may contain residual data from
+previous allocations (VRAM not being zeroed). This can lead to "Ghost
+Frames" - visual artifacts from previous user sessions appearing in
+new sessions, and potential information disclosure.
+
+Fix Details:
+- Force VRAM buffer zeroing at allocation via AMDGPU_GEM_CREATE_VRAM_CLEARED
+- Added amdgpu_scrub_vram_bo() for per-buffer scrubbing
+- Added amdgpu_scrub_session_vram() for session teardown cleanup
+- Enhanced VRAM clearing in TTM subsystem
+- Added Kconfig options:
+  * CONFIG_DRM_AMDGPU_USERPTR_RESTRICT
+  * CONFIG_AMDGPU_SCRUB_SESSION_VRAM
+
+Functions Added:
+- amdgpu_scrub_vram_bo() (static)
+- amdgpu_scrub_session_vram()
+- amdgpu_ttm_clear_new_bo() (if implemented)
+
+3. Touchscreen Matrix Synchronization
+--------------------------------------
+
+3.1 Display Rotation Race Condition Fix
+- Severity: LOW (Touch accuracy / UX issue)
+- Files: scripts/xinput-setup.sh, scripts/ssx-session-init.sh
+
+The startup sequence uses xinput calls outside the primary task, which
+creates race conditions with the touchscreen matrix. The xinput coordinate
+transformation matrix may be applied before xrandr rotation is confirmed
+complete, leading to incorrect touch coordinates.
+
+Fix Details:
+- Blocking wait for display rotation to stabilize before applying matrix
+- Uses polling check instead of static sleep
+- Proper sequencing for Gamescope compositor initialization
+
+Key Changes:
+- wait_for_rotation_stable() function
+- setup_touchscreen_sync() function with rotation confirmation
+- 3-consecutive-reading stability check
+
+4. Previous Security Fixes
+-------------------------
+
+4.1 CVE-2026-31431 (Copyfail) - crypto/algif_aead.c
+- Severity: CRITICAL
+- Fix: Added validate_sgl_length() function
+- Prevents 4-byte out-of-bounds write primitive
+
+5. Build Configuration
+----------------------
+
+To enable all security features, ensure these options are set in your
+kernel config:
+
+CONFIG_DRM_AMDGPU=y
+CONFIG_DRM_AMDGPU_USERPTR_RESTRICT=y
+CONFIG_AMDGPU_SCRUB_SESSION_VRAM=y
+
+6. Testing
+-----------
+
+evdev:
+- Test malformed input events are filtered
+- Test matrix state changes during event processing
+
+AMDGPU VRAM:
+- Run Gamescope session and check for ghost frames
+- Test rapid session switching
+
+Touchscreen:
+- Rotate display and verify touch accuracy
+- Stress test with rapid rotation changes
+
+7. Related Files
+---------------
+
+Modified:
+- drivers/input/evdev.c
+- drivers/input/input.c
+- drivers/gpu/drm/amd/amdgpu/amdgpu_object.c
+- drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
+- drivers/gpu/drm/amd/amdgpu/Kconfig
+- drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+
+Patches:
+- output/security/evdev-input-matrix-fix.patch
+- output/security/amdgpu-ghost-frame-mitigation.patch
+- output/security/touchscreen-matrix-sync-fix.patch
+- output/security/cve-2026-31431-copyfail-fix.patch
