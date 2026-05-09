@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# NTFS3 filesystem configuration
+#
+# Copyright (c) 2020-2024 Paragon Software GmbH
+
+config NTFS3_FS
+	tristate "NTFS3 (Paragon) support"
+	default y
+	depends on BLOCK
+	select FS_IOMAP
+	select FS_POSIX_ACL
+	help
+	  This driver provides full read-write support for NTFS
+	  filesystems. It is a modern, high-performance driver
+	  developed by Paragon Software.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ntfs3.
+
+config NTFS3_LZX_RANGECHECK
+	bool "NTFS3: LZX range check"
+	depends on NTFS3_FS
+	default y
+	help
+	  Enable range checking for LZX compression to prevent
+	  buffer overruns. Disable only if you need maximum
+	  performance and trust your data.
+
+	  If unsure, say Y.
+
+config NTFS3_FS_DEBUG
+	int "NTFS3 debugging level"
+	depends on NTFS3_FS
+	default 0
+	help
+	  Set NTFS3 debugging verbosity (0-3).
+
+	  0 = No debugging
+	  1 = Basic errors
+	  2 = Warnings
+	  3 = All messages
+
+	  If unsure, say 0.
