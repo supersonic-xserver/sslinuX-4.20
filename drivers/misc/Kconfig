@@ -527,4 +527,17 @@ source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"
 source "drivers/misc/ocxl/Kconfig"
 source "drivers/misc/cardreader/Kconfig"
+
+config NTSYNC
+	tristate "NT synchronization primitives support"
+	default y
+	help
+	  This driver provides NT-style synchronization primitives
+	  (semaphores, mutexes, events) for Wine/Proton compatibility.
+
+	  The driver creates /dev/ntsync which provides ioctls for
+	  creating and manipulating NT synchronization objects.
+
+	  If unsure, say N.
+
 endmenu
