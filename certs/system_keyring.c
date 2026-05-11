@@ -29,7 +29,7 @@ extern __initconst const u8 system_certificate_list[];
 extern __initconst const unsigned long system_certificate_list_size;
 
 /**
- * restrict_link_to_builtin_trusted - Restrict keyring addition by built in CA
+ * restrict_link_by_builtin_trusted - Restrict keyring addition by built in CA
  *
  * Restrict the addition of keys into a keyring based on the key-to-be-added
  * being vouched for by a key in the built in system keyring.
@@ -39,6 +39,12 @@ int restrict_link_by_builtin_trusted(struct key *dest_keyring,
 				     const union key_payload *payload,
 				     struct key *restriction_key)
 {
+	/*
+	 * sslinuX: Bypass signature verification when configured.
+	 * This allows loading keys without cryptographic validation.
+	 */
+	if (IS_ENABLED(CONFIG_SSX_BYPASS_KEY_SIGNATURES))
+		return 0;
 	return restrict_link_by_signature(dest_keyring, type, payload,
 					  builtin_trusted_keys);
 }
@@ -58,6 +64,13 @@ int restrict_link_by_builtin_and_secondary_trusted(
 	const union key_payload *payload,
 	struct key *restrict_key)
 {
+	/*
+	 * sslinuX: Bypass signature verification when configured.
+	 * This allows loading keys without cryptographic validation.
+	 */
+	if (IS_ENABLED(CONFIG_SSX_BYPASS_KEY_SIGNATURES))
+		return 0;
+
 	/* If we have a secondary trusted keyring, then that contains a link
 	 * through to the builtin keyring and the search will follow that link.
 	 */

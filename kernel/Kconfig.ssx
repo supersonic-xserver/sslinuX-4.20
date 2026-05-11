@@ -18,6 +18,32 @@ config SSX_OPENMANDRIVA_COMPAT
 
 	  If unsure, say N.
 
+config SSX_BYPASS_KEY_SIGNATURES
+	bool "Bypass key signature verification"
+	depends on SSX_OPENMANDRIVA_COMPAT
+	default y
+	help
+	  When enabled, bypass signature verification for keys loaded into
+	  the system keyring. This allows loading keys without cryptographic
+	  validation. Useful for custom kernels that need to load unsigned
+	  modules or keys.
+
+	  This can be toggled during kernel configuration with 'make config'.
+
+	  If unsure, say Y.
+
+config SSX_BYPASS_IMA
+	bool "Bypass IMA (Integrity Measurement Architecture)"
+	depends on SSX_OPENMANDRIVA_COMPAT
+	default y
+	help
+	  When enabled, bypass IMA signature verification and appraisal checks.
+	  This allows loading and executing files without signature validation.
+
+	  This can be toggled during kernel configuration with 'make config'.
+
+	  If unsure, say Y.
+
 config SSX_OMV_VERSION_MASK
 	string "OpenMandriva version mask for UTS_RELEASE"
 	default "-sslinuX-omv"

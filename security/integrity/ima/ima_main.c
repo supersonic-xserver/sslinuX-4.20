@@ -167,10 +167,21 @@ void ima_file_free(struct file *file)
 	ima_check_last_writer(iint, inode, file);
 }
 
+/*
+ * sslinuX: Bypass IMA verification when configured.
+ * This allows loading and executing files without signature validation.
+ */
 static int process_measurement(struct file *file, const struct cred *cred,
 			       u32 secid, char *buf, loff_t size, int mask,
 			       enum ima_hooks func)
 {
+	/*
+	 * sslinuX: Early return if IMA bypass is enabled.
+	 * Skip all integrity measurements and appraisals.
+	 */
+	if (IS_ENABLED(CONFIG_SSX_BYPASS_IMA))
+		return 0;
+
 	struct inode *backing_inode, *inode = file_inode(file);
 	struct integrity_iint_cache *iint = NULL;
 	struct ima_template_desc *template_desc;
