@@ -23,9 +23,11 @@ static const char __UNIQUE_ID(name)[]					  \
   __used __attribute__((section(".modinfo"), unused, aligned(1)))	  \
   = __stringify(tag) "=" info
 #else  /* !MODULE */
-/* This struct is here for syntactic coherency, it is not used */
+/* Backport from kernel 5.2+: built-in modules also emit modinfo with KBUILD_MODNAME prefix */
 #define __MODULE_INFO(tag, name, info)					  \
-  struct __UNIQUE_ID(name) {}
+static const char __UNIQUE_ID(name)[]					  \
+  __used __attribute__((section(".modinfo"), unused, aligned(1)))	  \
+  = KBUILD_MODNAME "." __stringify(tag) "=" info
 #endif
 #define __MODULE_PARM_TYPE(name, _type)					  \
   __MODULE_INFO(parmtype, name##type, #name ":" _type)

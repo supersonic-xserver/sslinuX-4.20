@@ -76,6 +76,9 @@ modpost_link()
 		--end-group"
 
 	${LD} ${KBUILD_LDFLAGS} -r -o ${1} ${objects}
+
+	# Backport from kernel 5.2+: Extract .modinfo section for built-in module metadata
+	${OBJCOPY} -j .modinfo -O binary ${1} modules.builtin.modinfo
 }
 
 # Link of vmlinux
