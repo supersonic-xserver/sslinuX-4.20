@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2020-2024 Paragon Software GmbH
  * 
- * Backport to Linux 4.20 for sslinuX-4.20
+ * Backport to sslinuX-4.20
  * 
  * VFS abstraction layer for 4.20 compatibility:
  * - Folios -> Pages (folio_* -> page_*)
@@ -25,9 +25,35 @@
 #include <linux/nls.h>
 #include <linux/workqueue.h>
 #include <linux/bit_spinlock.h>
+#include <linux/statfs.h>
 
-/* Forward declarations */
-struct ntfs_sb_info;
+/* Forward declarations - define struct here to avoid forward reference issues */
+struct ntfs3_sb_info {
+	struct super_block *sb;
+	struct buffer_head *boot_bh;
+	struct NTFS_BOOT_SECTOR *boot;
+	u64 volume_size;
+	u32 sector_size;
+	u32 cluster_size;
+	u32 cluster_bits;
+	u64 mft_cluster;
+	u64 mftmirr_cluster;
+	u32 mft_record_size;
+	u32 index_record_size;
+	struct inode *mft_inode;
+	struct address_space *mft_mapping;
+	struct inode *upcase_inode;
+	u16 *upcase;
+	u32 upcase_len;
+	struct inode *quota_inode;
+	struct inode *bitmap_inode;
+	unsigned long *bitmap;
+	unsigned long flags;
+	struct nls_table *nls;
+	struct workqueue_struct *workqueue;
+	struct work_struct work;
+};
+
 struct ntfs_inode;
 struct ntfs_attr;
 struct runs_tree;
@@ -35,7 +61,7 @@ struct runs_tree;
 /* Compatibility shims for 4.20 */
 #ifndef HAVE_FOLIO
 /* 4.20 doesn't have folios - use struct page directly */
-#define folio战队(page)		(page)
+#define folio(page)		(page)
 #define folio_page(folio, idx)	((folio) + (idx))
 #define folio_address(folio)	page_address(folio)
 #define folio_lock(folio)	lock_page(folio)
@@ -45,7 +71,7 @@ struct runs_tree;
 #define folio_set_uptodate(folio)	SetPageUptodate(folio)
 #define folio_clear_uptodate(folio)	ClearPageUptodate(folio)
 #define folio_nr_pages(folio)	1
-#define folio_idx(folio)	0
+#define folio_idx(folio)		0
 #endif
 
 /* iomap shims for 4.20 */
@@ -71,10 +97,13 @@ static inline struct page *ntfs3_grab_page(struct address_space *mapping,
 	return grab_cache_page(mapping, index);
 }
 
+/* Page flush for 4.20 - no flush_dcache_pages in this era */
 static inline void ntfs3_flush_dcache_pages(struct page **pages,
 					     unsigned int nr_pages)
 {
-	flush_dcache_pages(pages, nr_pages);
+	unsigned int i;
+	for (i = 0; i < nr_pages; i++)
+		flush_dcache_page(pages[i]);
 }
 
 /* Attribute operations */
@@ -174,7 +203,7 @@ struct ntfs_search_context {
 /* NTFS file attributes */
 #define NTFS_ATTR_ARCHIVE	(1 << 0)
 #define NTFS_ATTR_COMPRESSED	(1 << 1)
-#define NTFS_ATTREncrypted	(1 << 2)
+#define NTFS_ATTR_ENCRYPTED	(1 << 2)
 #define NTFS_ATTR_HIDDEN	(1 << 3)
 #define NTFS_ATTR_READONLY	(1 << 4)
 #define NTFS_ATTR_SYSTEM	(1 << 5)
@@ -261,7 +290,7 @@ struct ATTR_LIST_ENTRY {
 	__le16 name[0];
 };
 
-/* Attribute header (non-resident) */
+/* Attribute header - fixed union duplication */
 struct ATTR {
 	__le32 type;
 	__le32 size;
@@ -270,14 +299,14 @@ struct ATTR {
 	__le16 name_size;
 	__le16 flags;
 	__le16 instance;
-	union {
-		struct {
+	union attr_data {
+		struct resident {
 			__le32 value_size;
 			__le16 value_offset;
 			__u8 flags;
 			__u8 reserved;
-		} resident;
-		struct {
+		} res;
+		struct non_resident {
 			__le64 alloc_size;
 			__le64 data_size;
 			__le64 valid_size;
@@ -285,8 +314,8 @@ struct ATTR {
 			__le16 compression_unit;
 			__le16 reserved;
 			__le64 CompressionUnitSize;
-		} non_resident;
-	};
+		} nonres;
+	} d;
 };
 
 /* Attribute types */
@@ -351,18 +380,18 @@ static inline bool is_bitmap_ino(int ino)
 	return ino == MFT_REC_BITMAP;
 }
 
-/* Cluster operations */
-static inline unsigned long clusters_to_bytes(struct ntfs_sb_info *sbi, s64 clusters)
+/* Cluster operations - use inline helper instead of direct struct access */
+static inline unsigned long ntfs3_clusters_to_bytes(struct ntfs3_sb_info *sbi, s64 clusters)
 {
 	return clusters << sbi->cluster_bits;
 }
 
-static inline s64 bytes_to_clusters(struct ntfs_sb_info *sbi, unsigned long bytes)
+static inline s64 ntfs3_bytes_to_clusters(struct ntfs3_sb_info *sbi, unsigned long bytes)
 {
 	return bytes >> sbi->cluster_bits;
 }
 
-static inline unsigned long bytes_to_cluster_size(struct ntfs_sb_info *sbi)
+static inline unsigned long ntfs3_bytes_to_cluster_size(struct ntfs3_sb_info *sbi)
 {
 	return 1UL << sbi->cluster_bits;
 }
@@ -370,5 +399,13 @@ static inline unsigned long bytes_to_cluster_size(struct ntfs_sb_info *sbi)
 /* ntfs3 compatibility header for VFS */
 #define ntfs3_get_block		mpage_get_block
 #define ntfs3_readpage		mpage_readpage
+
+/* NTFS error/warning macros for 4.20 */
+#define ntfs_err(sb, fmt, ...) \
+	pr_err("NTFS3: " fmt, ##__VA_ARGS__)
+#define ntfs_warn(sb, fmt, ...) \
+	pr_warn("NTFS3: " fmt, ##__VA_ARGS__)
+#define ntfs_info(sb, fmt, ...) \
+	pr_info("NTFS3: " fmt, ##__VA_ARGS__)
 
 #endif /* _LINUX_NTFS3_H */

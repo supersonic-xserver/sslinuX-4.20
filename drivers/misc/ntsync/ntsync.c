@@ -30,9 +30,9 @@
 
 /* Object types */
 enum ntsync_type {
-	NTSYNC_TYPE_SEM,
-	NTSYNC_TYPE_MUTEX,
-	NTSYNC_TYPE_EVENT,
+	NTSYNC_OBJ_SEM,
+	NTSYNC_OBJ_MUTEX,
+	NTSYNC_OBJ_EVENT,
 };
 
 /* Object flags */
@@ -70,8 +70,7 @@ struct ntsync_file {
 	wait_queue_head_t wait_all;
 };
 
-/* Object allocation/management */
-static DEFINE_IDA(ntsync_ida);
+/* Object allocation/management - uses per-file IDR for object management */
 
 static struct ntsync_obj *ntsync_obj_alloc(enum ntsync_type type)
 {
@@ -110,7 +109,7 @@ static int ntsync_sem_init(struct ntsync_obj *sem, __u32 count, __u32 max)
 	if (count > max)
 		return -EINVAL;
 
-	sem->type = NTSYNC_TYPE_SEM;
+	sem->type = NTSYNC_OBJ_SEM;
 	sem->sem.count = count;
 	sem->sem.max = max;
 
@@ -130,7 +129,7 @@ static __u32 ntsync_sem_post(struct ntsync_obj *sem, __u32 prev)
 /* Mutex operations */
 static int ntsync_mutex_init(struct ntsync_obj *mutex, __u32 owner)
 {
-	mutex->type = NTSYNC_TYPE_MUTEX;
+	mutex->type = NTSYNC_OBJ_MUTEX;
 	mutex->mutex.owner = owner;
 	mutex->mutex.count = 1;
 
@@ -153,7 +152,7 @@ static __u32 ntsync_mutex_unlock(struct ntsync_obj *mutex, __u32 owner)
 /* Event operations */
 static int ntsync_event_init(struct ntsync_obj *event, __u32 manual, __u32 signaled)
 {
-	event->type = NTSYNC_TYPE_EVENT;
+	event->type = NTSYNC_OBJ_EVENT;
 	event->event.manual = manual;
 
 	if (signaled)
@@ -195,7 +194,7 @@ static int ntsync_get_object(struct ntsync_file *file, unsigned int cmd,
 		if (copy_from_user(&args, argp, sizeof(args)))
 			return -EFAULT;
 
-		tmp = ntsync_obj_alloc(NTSYNC_TYPE_SEM);
+		tmp = ntsync_obj_alloc(NTSYNC_OBJ_SEM);
 		if (!tmp)
 			return -ENOMEM;
 
@@ -220,7 +219,7 @@ static int ntsync_get_object(struct ntsync_file *file, unsigned int cmd,
 		if (copy_from_user(&args, argp, sizeof(args)))
 			return -EFAULT;
 
-		tmp = ntsync_obj_alloc(NTSYNC_TYPE_MUTEX);
+		tmp = ntsync_obj_alloc(NTSYNC_OBJ_MUTEX);
 		if (!tmp)
 			return -ENOMEM;
 
@@ -243,7 +242,7 @@ static int ntsync_get_object(struct ntsync_file *file, unsigned int cmd,
 		if (copy_from_user(&args, argp, sizeof(args)))
 			return -EFAULT;
 
-		tmp = ntsync_obj_alloc(NTSYNC_TYPE_EVENT);
+		tmp = ntsync_obj_alloc(NTSYNC_OBJ_EVENT);
 		if (!tmp)
 			return -ENOMEM;
 
@@ -284,17 +283,17 @@ static int ntsync_qry_object(struct ntsync_file *file, unsigned int cmd,
 	args.signaled = 0;
 
 	switch (obj->type) {
-	case NTSYNC_TYPE_SEM:
+	case NTSYNC_OBJ_SEM:
 		args.count = obj->sem.count;
 		args.signaled = (obj->sem.count > 0);
 		break;
 
-	case NTSYNC_TYPE_MUTEX:
+	case NTSYNC_OBJ_MUTEX:
 		args.owner = obj->mutex.owner;
 		args.signaled = (obj->mutex.owner == 0);
 		break;
 
-	case NTSYNC_TYPE_EVENT:
+	case NTSYNC_OBJ_EVENT:
 		args.signaled = test_bit(0, (unsigned long *)&obj->type);
 		break;
 	}
@@ -303,12 +302,14 @@ static int ntsync_qry_object(struct ntsync_file *file, unsigned int cmd,
 }
 
 static int ntsync_wait_objects(struct ntsync_file *file,
-			       struct ntsync_wait_args __user *argp)
+			       struct ntsync_wait_args __user *argp,
+			       int wait_all)
 {
 	struct ntsync_wait_args args;
 	struct ntsync_obj *objects[NTSYNC_MAX_WAIT_COUNT];
 	ktime_t timeout;
 	int i, ret = 0;
+	int j;
 
 	if (copy_from_user(&args, argp, sizeof(args)))
 		return -EFAULT;
@@ -317,12 +318,16 @@ static int ntsync_wait_objects(struct ntsync_file *file,
 		return -EINVAL;
 
 	/* Get objects */
+	mutex_lock(&file->lock);
 	for (i = 0; i < args.count; i++) {
 		objects[i] = idr_find(&file->object_idr, i);
-		if (!objects[i])
+		if (!objects[i]) {
+			mutex_unlock(&file->lock);
 			return -EINVAL;
+		}
 		ntsync_obj_get(objects[i]);
 	}
+	mutex_unlock(&file->lock);
 
 	if (args.timeout == NTSYNC_INFINITE)
 		timeout = KTIME_MAX;
@@ -334,22 +339,21 @@ static int ntsync_wait_objects(struct ntsync_file *file,
 		file->wait_all,
 		({
 			bool signaled = false;
-			int j;
 
 			for (j = 0; j < args.count; j++) {
 				struct ntsync_obj *obj = objects[j];
 				switch (obj->type) {
-				case NTSYNC_TYPE_SEM:
+				case NTSYNC_OBJ_SEM:
 					signaled = (obj->sem.count > 0);
 					break;
-				case NTSYNC_TYPE_MUTEX:
+				case NTSYNC_OBJ_MUTEX:
 					signaled = (obj->mutex.owner == 0);
 					break;
-				case NTSYNC_TYPE_EVENT:
+				case NTSYNC_OBJ_EVENT:
 					signaled = test_bit(0, (unsigned long *)&obj->type);
 					break;
 				}
-				if (signaled && !args.forall)
+				if (signaled && !wait_all)
 					break;
 			}
 
@@ -377,24 +381,95 @@ static long ntsync_file_ioctl(struct file *file, unsigned int cmd,
 {
 	struct ntsync_file *f = file->private_data;
 	void __user *argp = (void __user *)arg;
-	int fd;
+	struct ntsync_obj *obj;
+	__u32 id;
+	__u32 prev;
+	int ret;
 
 	switch (cmd) {
 	case NTSYNC_IOC_CREATE_SEM:
 	case NTSYNC_IOC_CREATE_MUTEX:
 	case NTSYNC_IOC_CREATE_EVENT:
-		fd = ntsync_get_object(f, cmd, argp, NULL);
-		if (fd < 0)
-			return fd;
-		return fd;
+		return ntsync_get_object(f, cmd, argp, NULL);
 
-	case NTSYNC_IOC_WAIT:
-		return ntsync_wait_objects(f, argp);
+	case NTSYNC_IOC_WAIT_ANY:
+		return ntsync_wait_objects(f, argp, 0);
+
+	case NTSYNC_IOC_WAIT_ALL:
+		return ntsync_wait_objects(f, argp, 1);
 
 	case NTSYNC_IOC_QRY_SEM:
 	case NTSYNC_IOC_QRY_MUTEX:
 	case NTSYNC_IOC_QRY_EVENT:
 		return ntsync_qry_object(f, cmd, argp);
+
+	case NTSYNC_IOC_SEM_POST:
+		if (copy_from_user(&id, argp, sizeof(id)))
+			return -EFAULT;
+		mutex_lock(&f->lock);
+		obj = idr_find(&f->object_idr, id);
+		if (!obj || obj->type != NTSYNC_OBJ_SEM) {
+			mutex_unlock(&f->lock);
+			return -EINVAL;
+		}
+		prev = ntsync_sem_post(obj, 0);
+		mutex_unlock(&f->lock);
+		if (put_user(prev, (__u32 __user *)argp))
+			return -EFAULT;
+		return 0;
+
+	case NTSYNC_IOC_MUTEX_UNLOCK:
+		if (copy_from_user(&id, argp, sizeof(id)))
+			return -EFAULT;
+		mutex_lock(&f->lock);
+		obj = idr_find(&f->object_idr, id);
+		if (!obj || obj->type != NTSYNC_OBJ_MUTEX) {
+			mutex_unlock(&f->lock);
+			return -EINVAL;
+		}
+		ret = ntsync_mutex_unlock(obj, id);
+		mutex_unlock(&f->lock);
+		return ret;
+
+	case NTSYNC_IOC_EVENT_SET:
+		if (copy_from_user(&id, argp, sizeof(id)))
+			return -EFAULT;
+		mutex_lock(&f->lock);
+		obj = idr_find(&f->object_idr, id);
+		if (!obj || obj->type != NTSYNC_OBJ_EVENT) {
+			mutex_unlock(&f->lock);
+			return -EINVAL;
+		}
+		ntsync_event_signal(obj);
+		mutex_unlock(&f->lock);
+		return 0;
+
+	case NTSYNC_IOC_EVENT_RESET:
+		if (copy_from_user(&id, argp, sizeof(id)))
+			return -EFAULT;
+		mutex_lock(&f->lock);
+		obj = idr_find(&f->object_idr, id);
+		if (!obj || obj->type != NTSYNC_OBJ_EVENT) {
+			mutex_unlock(&f->lock);
+			return -EINVAL;
+		}
+		ntsync_event_reset(obj);
+		mutex_unlock(&f->lock);
+		return 0;
+
+	case NTSYNC_IOC_EVENT_PULSE:
+		if (copy_from_user(&id, argp, sizeof(id)))
+			return -EFAULT;
+		mutex_lock(&f->lock);
+		obj = idr_find(&f->object_idr, id);
+		if (!obj || obj->type != NTSYNC_OBJ_EVENT) {
+			mutex_unlock(&f->lock);
+			return -EINVAL;
+		}
+		ntsync_event_signal(obj);
+		ntsync_event_reset(obj);
+		mutex_unlock(&f->lock);
+		return 0;
 
 	case NTSYNC_IOC_DELETE:
 		idr_destroy(&f->object_idr);
@@ -409,6 +484,8 @@ static __poll_t ntsync_file_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
 	struct ntsync_file *f = file->private_data;
+	struct ntsync_obj *obj;
+	int id;
 	__poll_t mask = 0;
 
 	poll_wait(file, &f->wait_all, wait);
@@ -416,17 +493,17 @@ static __poll_t ntsync_file_poll(struct file *file,
 	/* Poll for signaled objects */
 	mutex_lock(&f->lock);
 
-	idr_for_each_entry(&f->object_idr, struct ntsync_obj, obj, id) {
+	idr_for_each_entry(&f->object_idr, obj, id) {
 		switch (obj->type) {
-		case NTSYNC_TYPE_SEM:
+		case NTSYNC_OBJ_SEM:
 			if (obj->sem.count > 0)
 				mask |= EPOLLIN;
 			break;
-		case NTSYNC_TYPE_MUTEX:
+		case NTSYNC_OBJ_MUTEX:
 			if (obj->mutex.owner == 0)
 				mask |= EPOLLIN;
 			break;
-		case NTSYNC_TYPE_EVENT:
+		case NTSYNC_OBJ_EVENT:
 			if (test_bit(0, (unsigned long *)&obj->type))
 				mask |= EPOLLIN;
 			break;
@@ -442,8 +519,9 @@ static int ntsync_file_release(struct inode *inode, struct file *file)
 {
 	struct ntsync_file *f = file->private_data;
 	struct ntsync_obj *obj;
+	int id;
 
-	idr_for_each_entry(&f->object_idr, struct ntsync_obj, obj, id) {
+	idr_for_each_entry(&f->object_idr, obj, id) {
 		ntsync_obj_put(obj);
 	}
 	idr_destroy(&f->object_idr);

@@ -93,11 +93,19 @@ struct ntsync_qry_args {
 #define NTSYNC_IOC_CREATE_SEM		_IOWR(NTSYNC_IOC_BASE, 0x00, struct ntsync_sem_args)
 #define NTSYNC_IOC_CREATE_MUTEX 	_IOWR(NTSYNC_IOC_BASE, 0x01, struct ntsync_mutex_args)
 #define NTSYNC_IOC_CREATE_EVENT		_IOWR(NTSYNC_IOC_BASE, 0x02, struct ntsync_event_args)
-#define NTSYNC_IOC_WAIT			_IOWR(NTSYNC_IOC_BASE, 0x03, struct ntsync_wait_args)
-#define NTSYNC_IOC_QRY_SEM		_IOWR(NTSYNC_IOC_BASE, 0x04, struct ntsync_qry_args)
-#define NTSYNC_IOC_QRY_MUTEX		_IOWR(NTSYNC_IOC_BASE, 0x05, struct ntsync_qry_args)
-#define NTSYNC_IOC_QRY_EVENT		_IOWR(NTSYNC_IOC_BASE, 0x06, struct ntsync_qry_args)
-#define NTSYNC_IOC_DELETE		_IO(NTSYNC_IOC_BASE, 0x07)
+#define NTSYNC_IOC_WAIT_ANY		_IOWR(NTSYNC_IOC_BASE, 0x03, struct ntsync_wait_args)
+#define NTSYNC_IOC_WAIT_ALL		_IOWR(NTSYNC_IOC_BASE, 0x04, struct ntsync_wait_args)
+#define NTSYNC_IOC_QRY_SEM		_IOWR(NTSYNC_IOC_BASE, 0x05, struct ntsync_qry_args)
+#define NTSYNC_IOC_QRY_MUTEX		_IOWR(NTSYNC_IOC_BASE, 0x06, struct ntsync_qry_args)
+#define NTSYNC_IOC_QRY_EVENT		_IOWR(NTSYNC_IOC_BASE, 0x07, struct ntsync_qry_args)
+#define NTSYNC_IOC_DELETE		_IO(NTSYNC_IOC_BASE, 0x08)
+
+/* Object operation ioctls */
+#define NTSYNC_IOC_SEM_POST		_IOWR(NTSYNC_IOC_BASE, 0x10, __u32)
+#define NTSYNC_IOC_MUTEX_UNLOCK		_IOWR(NTSYNC_IOC_BASE, 0x11, __u32)
+#define NTSYNC_IOC_EVENT_SET		_IOWR(NTSYNC_IOC_BASE, 0x12, __u32)
+#define NTSYNC_IOC_EVENT_RESET		_IOWR(NTSYNC_IOC_BASE, 0x13, __u32)
+#define NTSYNC_IOC_EVENT_PULSE		_IOWR(NTSYNC_IOC_BASE, 0x14, __u32)
 
 /* Special timeout values */
 #define NTSYNC_INFINITE		(~0ULL)

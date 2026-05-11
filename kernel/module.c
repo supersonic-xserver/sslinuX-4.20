@@ -286,6 +286,13 @@ void set_module_sig_enforced(void)
  */
 bool is_module_sig_enforced(void)
 {
+	/*
+	 * sslinuX: OpenMandriva boot compatibility - bypass signature enforcement
+	 * when CONFIG_SSX_OPENMANDRIVA_COMPAT is enabled. This allows loading
+	 * unsigned modules and bypasses "uncertified" kernel checks.
+	 */
+	if (IS_ENABLED(CONFIG_SSX_OPENMANDRIVA_COMPAT))
+		return false;
 	return sig_enforce;
 }
 EXPORT_SYMBOL(is_module_sig_enforced);

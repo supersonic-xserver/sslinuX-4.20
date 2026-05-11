@@ -1,49 +1,128 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * bitfunc.c - NTFS3 bitmap operations
  *
- * Copyright (c) 2020-2024 Paragon Software GmbH
- * Backport to sslinuX-4.20
+ * Copyright (C) 2019-2021 Paragon Software GmbH, All rights reserved.
+ *
  */
 
-#include "ntfs3.h"
+#include <linux/types.h>
+
+#include "ntfs_fs.h"
+
+#define BITS_IN_SIZE_T (sizeof(size_t) * 8)
 
 /*
- * ntfs3_set_bit - Set bit in bitmap
+ * fill_mask[i] - first i bits are '1' , i = 0,1,2,3,4,5,6,7,8
+ * fill_mask[i] = 0xFF >> (8-i)
  */
-void ntfs3_set_bit(unsigned long *bitmap, int bit)
+static const u8 fill_mask[] = { 0x00, 0x01, 0x03, 0x07, 0x0F,
+				0x1F, 0x3F, 0x7F, 0xFF };
+
+/*
+ * zero_mask[i] - first i bits are '0' , i = 0,1,2,3,4,5,6,7,8
+ * zero_mask[i] = 0xFF << i
+ */
+static const u8 zero_mask[] = { 0xFF, 0xFE, 0xFC, 0xF8, 0xF0,
+				0xE0, 0xC0, 0x80, 0x00 };
+
+/*
+ * are_bits_clear
+ *
+ * Return: True if all bits [bit, bit+nbits) are zeros "0".
+ */
+bool are_bits_clear(const ulong *lmap, size_t bit, size_t nbits)
 {
-	set_bit(bit, bitmap);
+	size_t pos = bit & 7;
+	const u8 *map = (u8 *)lmap + (bit >> 3);
+
+	if (pos) {
+		if (8 - pos >= nbits)
+			return !nbits || !(*map & fill_mask[pos + nbits] &
+					   zero_mask[pos]);
+
+		if (*map++ & zero_mask[pos])
+			return false;
+		nbits -= 8 - pos;
+	}
+
+	pos = ((size_t)map) & (sizeof(size_t) - 1);
+	if (pos) {
+		pos = sizeof(size_t) - pos;
+		if (nbits >= pos * 8) {
+			for (nbits -= pos * 8; pos; pos--, map++) {
+				if (*map)
+					return false;
+			}
+		}
+	}
+
+	for (pos = nbits / BITS_IN_SIZE_T; pos; pos--, map += sizeof(size_t)) {
+		if (*((size_t *)map))
+			return false;
+	}
+
+	for (pos = (nbits % BITS_IN_SIZE_T) >> 3; pos; pos--, map++) {
+		if (*map)
+			return false;
+	}
+
+	pos = nbits & 7;
+	if (pos && (*map & fill_mask[pos]))
+		return false;
+
+	return true;
 }
 
 /*
- * ntfs3_clear_bit - Clear bit in bitmap
+ * are_bits_set
+ *
+ * Return: True if all bits [bit, bit+nbits) are ones "1".
  */
-void ntfs3_clear_bit(unsigned long *bitmap, int bit)
+bool are_bits_set(const ulong *lmap, size_t bit, size_t nbits)
 {
-	clear_bit(bit, bitmap);
-}
+	u8 mask;
+	size_t pos = bit & 7;
+	const u8 *map = (u8 *)lmap + (bit >> 3);
 
-/*
- * ntfs3_test_bit - Test bit in bitmap
- */
-int ntfs3_test_bit(unsigned long *bitmap, int bit)
-{
-	return test_bit(bit, bitmap);
-}
+	if (pos) {
+		if (8 - pos >= nbits) {
+			mask = fill_mask[pos + nbits] & zero_mask[pos];
+			return !nbits || (*map & mask) == mask;
+		}
 
-/*
- * ntfs3_find_next_zero - Find next zero bit
- */
-int ntfs3_find_next_zero(unsigned long *bitmap, int start, int max)
-{
-	return find_next_zero_bit(bitmap, max, start);
-}
+		mask = zero_mask[pos];
+		if ((*map++ & mask) != mask)
+			return false;
+		nbits -= 8 - pos;
+	}
 
-/*
- * ntfs3_find_next - Find next set bit
- */
-int ntfs3_find_next(unsigned long *bitmap, int start, int max)
-{
-	return find_next_bit(bitmap, max, start);
+	pos = ((size_t)map) & (sizeof(size_t) - 1);
+	if (pos) {
+		pos = sizeof(size_t) - pos;
+		if (nbits >= pos * 8) {
+			for (nbits -= pos * 8; pos; pos--, map++) {
+				if (*map != 0xFF)
+					return false;
+			}
+		}
+	}
+
+	for (pos = nbits / BITS_IN_SIZE_T; pos; pos--, map += sizeof(size_t)) {
+		if (*((size_t *)map) != MINUS_ONE_T)
+			return false;
+	}
+
+	for (pos = (nbits % BITS_IN_SIZE_T) >> 3; pos; pos--, map++) {
+		if (*map != 0xFF)
+			return false;
+	}
+
+	pos = nbits & 7;
+	if (pos) {
+		mask = fill_mask[pos];
+		if ((*map & mask) != mask)
+			return false;
+	}
+
+	return true;
 }

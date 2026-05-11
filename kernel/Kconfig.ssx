@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# sslinuX-specific configuration options
+# sslinuX 4.20 "People's Front"
+#
+
+menu "sslinuX-specific options"
+
+config SSX_OPENMANDRIVA_COMPAT
+	bool "OpenMandriva boot compatibility mode"
+	help
+	  When enabled, this option bypasses module signature enforcement
+	  checks that would prevent loading unsigned modules. This is
+	  required for OpenMandriva to boot with this custom kernel.
+
+	  The kernel will report itself as "certified" to bypass
+	  distribution-specific DRM blacklist checks.
+
+	  If unsure, say N.
+
+config SSX_OMV_VERSION_MASK
+	string "OpenMandriva version mask for UTS_RELEASE"
+	default "-sslinuX-omv"
+	help
+	  This string is appended to the kernel version when
+	  CONFIG_SSX_OPENMANDRIVA_COMPAT is enabled. OpenMandriva
+	  checks this string to determine if the kernel is "certified"
+	  for use with the distribution.
+
+	  Default: "-sslinuX-omv"
+
+endmenu

@@ -221,6 +221,7 @@ make -j$(nproc)
 | AMDGPU drivers functional | TBD | Performance patches pending |
 | Steam Deck audio | ✅ Done | CS35L41/CS42L43 pulled from v6.x |
 | 386 code paths preserved | ✅ Done | No changes made |
+| OpenMandriva boot compatibility | ✅ Done | CONFIG_SSX_OPENMANDRIVA_COMPAT option added |
 
 ---
 
